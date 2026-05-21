@@ -25,17 +25,24 @@
   <!-- Game engine (vendored locally so it works on any network) -->
   <script src="lib/phaser.min.js"></script>
 
-  <!-- Game data and helpers -->
+  <!-- Game data and helpers (load order matters) -->
   <script src="src/config.js"></script>
   <script src="src/mathProblems.js"></script>
+  <script src="src/shopItems.js"></script>
+  <script src="src/PlayerState.js"></script>
+  <script src="src/DailyQuests.js"></script>
+  <script src="src/EnemyFactory.js"></script>
   <script src="src/audio.js"></script>
   <script src="src/ui.js"></script>
 
   <!-- Scenes (one screen of the game each) -->
   <script src="src/scenes/BootScene.js"></script>
   <script src="src/scenes/MenuScene.js"></script>
+  <script src="src/scenes/CharSelectScene.js"></script>
+  <script src="src/scenes/WorldMapScene.js"></script>
   <script src="src/scenes/GameScene.js"></script>
   <script src="src/scenes/HudScene.js"></script>
+  <script src="src/scenes/MathLabScene.js"></script>
   <script src="src/scenes/ShopScene.js"></script>
   <script src="src/scenes/GameOverScene.js"></script>
 

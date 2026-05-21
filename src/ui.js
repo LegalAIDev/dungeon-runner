@@ -101,9 +101,9 @@ const UI = {
     const w = opts.width || 230;
     const h = opts.height || 66;
     const radius = opts.radius != null ? opts.radius : 18;
-    const base = opts.color != null ? opts.color : UI.COLORS.accent;
-    const hover = Phaser.Display.Color.ValueToColor(base).lighten(14).color;
-    const down = Phaser.Display.Color.ValueToColor(base).darken(20).color;
+    let base = opts.color != null ? opts.color : UI.COLORS.accent;
+    let hover = Phaser.Display.Color.ValueToColor(base).lighten(14).color;
+    let down = Phaser.Display.Color.ValueToColor(base).darken(20).color;
     const disabled = 0x4c4770;
 
     const container = scene.add.container(x, y);
@@ -159,6 +159,12 @@ const UI = {
       paint(v ? base : disabled, 0);
     };
     container.setButtonLabel = function (s) { label.setText(s); };
+    container.setButtonColor = function (col) {
+      base = col;
+      hover = Phaser.Display.Color.ValueToColor(base).lighten(14).color;
+      down = Phaser.Display.Color.ValueToColor(base).darken(20).color;
+      paint(enabled ? base : disabled, 0);
+    };
     return container;
   },
 };

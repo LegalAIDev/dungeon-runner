@@ -30,8 +30,9 @@ const SFX = (function () {
   }
 
   const now = () => (ctx ? ctx.currentTime : 0);
-  const sfxOn = () => Save.data.soundOn;
-  const musicEffectiveOn = () => Save.data.soundOn && Save.data.musicOn;
+  const sfxOn = () => PlayerState.data.settings.soundOn;
+  const musicEffectiveOn = () =>
+    PlayerState.data.settings.soundOn && PlayerState.data.settings.musicOn;
 
   /* one short note, with an optional pitch slide and output destination */
   function blip(freq, t, dur, type, vol, freqEnd, dest) {
@@ -118,6 +119,13 @@ const SFX = (function () {
     click()      { if (!sfxOn()) return; ensure(); blip(640, now(), 0.06, 'square', 0.11); },
     gameOver()   { if (!sfxOn()) return; ensure(); const t = now();
                    [523, 440, 349, 262].forEach((f, i) => blip(f, t + i * 0.17, 0.42, 'triangle', 0.18)); },
+    star()       { if (!sfxOn()) return; ensure(); const t = now();
+                   [988, 1319, 1568].forEach((f, i) => blip(f, t + i * 0.05, 0.14, 'triangle', 0.15)); },
+    swing()      { if (!sfxOn()) return; ensure(); noise(now(), 0.07, 0.07, 2400); },
+    enemyDown()  { if (!sfxOn()) return; ensure(); const t = now();
+                   blip(330, t, 0.22, 'square', 0.16, 110); noise(t, 0.16, 0.13, 600); },
+    combo()      { if (!sfxOn()) return; ensure(); const t = now();
+                   [784, 1047].forEach((f, i) => blip(f, t + i * 0.05, 0.12, 'square', 0.13)); },
 
     /* --- background music --- */
     startMusic() {

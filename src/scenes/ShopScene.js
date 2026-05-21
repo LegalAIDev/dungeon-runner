@@ -1,267 +1,275 @@
 /* ============================================================================
-   ShopScene — spend coins on upgrades. Every purchase is unlocked by solving a
-   grade-5 math problem (multiple choice). Reached from the menu, the pause
-   menu, or the game-over screen.
+   ShopScene — three tabs:
+     · Coin Shop   — consumables bought with 💰 coins
+     · Math Lab    — launches a training session
+     · Star Upgrades — permanent weapons / armour / heroes / pets, ⭐ stars
    ========================================================================== */
 
 class ShopScene extends Phaser.Scene {
   constructor() { super('Shop'); }
 
   init(data) {
-    this.fromScene = (data && data.from) || 'Menu';
+    this.fromScene = (data && data.from) || 'WorldMap';
+    this.tab = (data && data.tab) || 'upgrades';
+    if (!this.upgradeCat) this.upgradeCat = 'weapon';
   }
 
   create() {
-    const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
-    this.mathStreak = 0;
-    this.cards = [];
-    this.mathLayer = null;
+    const W = CONFIG.WIDTH;
+    UI.scenicBackground(this, BIOMES[3]);
+    this.add.rectangle(0, 0, W, CONFIG.HEIGHT, 0x140d33, 0.66).setOrigin(0);
+    this.cameras.main.fadeIn(240, 0, 0, 0);
 
-    /* opaque background (covers the game when opened from the pause menu) */
-    const bg = this.add.graphics();
-    bg.fillGradientStyle(0x241a4d, 0x241a4d, 0x150f31, 0x150f31, 1);
-    bg.fillRect(0, 0, W, H);
-    for (let i = 0; i < 16; i++) {
-      this.add.image(Math.random() * W, Math.random() * H, 'star')
-        .setAlpha(0.15 + Math.random() * 0.3).setScale(0.5 + Math.random());
-    }
-
-    /* header */
-    UI.text(this, W / 2, 42, 'Upgrade Shop', 36, '#ffd23f', { bold: true, shadow: true });
-    UI.panel(this, W / 2, 84, 240, 40, UI.COLORS.panel, { radius: 14, shadow: false });
-    this.add.image(W / 2 - 64, 84, 'coin').setScale(0.92);
-    this.coinText = UI.text(this, W / 2 - 44, 84, String(Save.data.coins), 22,
-      '#ffd23f', { originX: 0, bold: true });
-    this.streakText = UI.text(this, W / 2 + 12, 84, '', 15, '#cdb8ff', { originX: 0 });
-    this.updateStreakText();
-
-    UI.button(this, 86, 42, {
-      label: '‹ Back', width: 130, height: 46, fontSize: 19,
-      color: UI.COLORS.panelLight, onClick: () => this.closeShop(),
-    });
-
-    /* upgrade cards in a 3-wide grid */
-    const colX = [166, 480, 794];
-    const rowY = [184, 330, 476];
-    UPGRADES.forEach((up, i) => {
-      let cx = colX[i % 3], cy = rowY[Math.floor(i / 3)];
-      if (i === UPGRADES.length - 1 && i % 3 === 0) cx = colX[1]; // lone last card → centre
-      this.cards.push(this.buildCard(up, cx, cy));
-    });
-
-    this.confetti = this.add.particles(0, 0, 'spark', {
-      speed: { min: 120, max: 340 }, angle: { min: 200, max: 340 },
-      lifespan: 900, gravityY: 520, scale: { start: 1.1, end: 0 },
-      tint: [0xff5a6e, 0xffd23f, 0x36c98d, 0x5b6ef5, 0x46e0d0],
-      emitting: false,
-    }).setDepth(1500);
-
-    /* keyboard: answer math with keys 1-4, Esc to cancel */
-    this.input.keyboard.on('keydown-ONE',   () => this.pickChoice(0));
-    this.input.keyboard.on('keydown-TWO',   () => this.pickChoice(1));
-    this.input.keyboard.on('keydown-THREE', () => this.pickChoice(2));
-    this.input.keyboard.on('keydown-FOUR',  () => this.pickChoice(3));
-    this.input.keyboard.on('keydown-ESC',   () => {
-      if (this.mathLayer) this.closeMath(); else this.closeShop();
-    });
-    this.events.once('shutdown', () => this.input.keyboard.removeAllListeners());
-
-    this.cameras.main.fadeIn(220, 0, 0, 0);
-  }
-
-  updateStreakText() {
-    this.streakText.setText(this.mathStreak >= 2 ? 'Math streak: ' + this.mathStreak : '');
-  }
-
-  /* ---- one upgrade card ---- */
-  buildCard(up, cx, cy) {
-    const w = 292, h = 134;
-    UI.panel(this, cx, cy, w, h, UI.COLORS.panel,
-      { radius: 16, stroke: UI.COLORS.panelLight, strokeWidth: 2 });
-
-    UI.text(this, cx - 130, cy - 50, up.name, 19, '#ffffff', { originX: 0, bold: true });
-    const tierColor = ['#36c98d', '#ffd23f', '#e0566b'][up.tier - 1];
-    const tierWord = ['Easy math', 'Medium math', 'Tricky math'][up.tier - 1];
-    UI.text(this, cx + 132, cy - 50, tierWord, 13, tierColor, { originX: 1, bold: true });
-
-    UI.text(this, cx - 130, cy - 12, up.desc, 13, '#cdb8ff',
-      { originX: 0, originY: 0.5, align: 'left', wrapWidth: 260 });
-
-    const ownedText = UI.text(this, cx - 130, cy + 28, '', 13, '#9d8fce', { originX: 0 });
-
-    const buyBtn = UI.button(this, cx + 28, cy + 38, {
-      label: '', width: 196, height: 40, fontSize: 16,
-      color: UI.COLORS.good, onClick: () => this.openMath(up),
-    });
-
-    const card = { up, ownedText, buyBtn };
-    this.refreshCard(card);
-    return card;
-  }
-
-  refreshCard(card) {
-    const up = card.up;
-    const owned = Save.owned(up.id);
-    const maxed = owned >= up.max;
-    const cost = upgradeCost(up, owned);
-    card.ownedText.setText('Owned: ' + owned + ' / ' + up.max);
-    if (maxed) {
-      card.buyBtn.setButtonLabel('MAXED OUT');
-      card.buyBtn.setButtonEnabled(false);
-    } else {
-      card.buyBtn.setButtonLabel('Buy  ·  ' + cost + ' coins');
-      card.buyBtn.setButtonEnabled(Save.data.coins >= cost);
-    }
-  }
-
-  refreshAllCards() {
-    this.coinText.setText(String(Save.data.coins));
-    this.cards.forEach((c) => this.refreshCard(c));
-  }
-
-  /* ---- the math challenge overlay ---- */
-  openMath(up) {
-    if (this.mathLayer) return;
-    const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
-    const owned = Save.owned(up.id);
-    this.pendingCost = upgradeCost(up, owned);
-    this.pendingUp = up;
-    this.problem = MathProblems.generate(up.tier);
-    this.resolved = false;
-
-    const c = this.add.container(0, 0).setDepth(1000);
-    c.add(this.add.rectangle(0, 0, W, H, 0x000000, 0.66).setOrigin(0).setInteractive());
-    c.add(UI.panel(this, W / 2, 266, 612, 452, UI.COLORS.panel,
-      { stroke: UI.COLORS.accent, strokeWidth: 4 }));
-    c.add(UI.text(this, W / 2, 88, 'Solve to unlock: ' + up.name, 24, '#ffd23f',
-      { bold: true }));
-    const tierWord = ['Easy', 'Medium', 'Tricky'][up.tier - 1];
-    c.add(UI.text(this, W / 2, 120, this.problem.topic + '  ·  ' + tierWord, 15,
-      '#cdb8ff'));
-    /* show "12 × 8  =  ?" for plain expressions, but word problems as-is */
-    const qDisplay = /[a-z]/i.test(this.problem.q)
-      ? this.problem.q : this.problem.q + '   =   ?';
-    c.add(UI.text(this, W / 2, 168, qDisplay, 27, '#ffffff',
-      { bold: true, wrapWidth: 544 }));
-
-    /* four answer buttons in a 2x2 grid */
-    this.choiceButtons = [];
-    const gx = [W / 2 - 130, W / 2 + 130];
-    const gy = [262, 326];
-    this.problem.choices.forEach((choice, i) => {
-      const btn = this.makeChoice(gx[i % 2], gy[Math.floor(i / 2)],
-        (i + 1) + '.  ' + choice, i);
-      this.choiceButtons.push(btn);
-      c.add(btn);
-    });
-
-    this.mathFeedback = UI.text(this, W / 2, 388, 'Pick the correct answer', 17,
-      '#cdb8ff', { bold: true });
-    c.add(this.mathFeedback);
-    this.mathHint = UI.text(this, W / 2, 418, '', 14, '#9d8fce',
-      { wrapWidth: 540 });
-    c.add(this.mathHint);
-
-    c.add(UI.button(this, W / 2, 458, {
-      label: 'Cancel', width: 150, height: 38, fontSize: 16,
-      color: UI.COLORS.panelLight, onClick: () => this.closeMath(),
-    }));
-
-    this.mathLayer = c;
-    c.setScale(0.92);
-    this.tweens.add({ targets: c, scale: 1, duration: 180, ease: 'Back.out' });
-  }
-
-  /* a recolourable answer button */
-  makeChoice(x, y, label, index) {
-    const w = 248, h = 56;
-    const cont = this.add.container(x, y);
-    const g = this.add.graphics();
-    const txt = this.add.text(0, 0, label, {
-      fontFamily: UI.FONT, fontSize: '21px', color: '#ffffff', fontStyle: 'bold',
-      align: 'center', wordWrap: { width: w - 26 },
+    this.add.text(W / 2, 38, '🏪  MATH STORE', {
+      fontFamily: UI.FONT, fontSize: '32px', color: '#ffd23f', fontStyle: 'bold',
     }).setOrigin(0.5);
-    cont.add([g, txt]);
 
-    const colors = { idle: 0x4a5ae0, hover: 0x5b6ef5, down: 0x3a48c0,
-                     good: 0x36c98d, bad: 0xe0566b, dead: 0x4c4770 };
-    cont.state2 = 'idle';
-    function paint() {
-      g.clear();
-      g.fillStyle(0x000000, 0.3); g.fillRoundedRect(-w / 2 + 3, -h / 2 + 6, w, h, 14);
-      g.fillStyle(colors[cont.state2], 1); g.fillRoundedRect(-w / 2, -h / 2, w, h, 14);
-      g.fillStyle(0xffffff, 0.14); g.fillRoundedRect(-w / 2 + 5, -h / 2 + 4, w - 10, h * 0.4, 10);
-    }
-    paint();
-    cont.repaint = paint;
-    cont.isLive = () => ['idle', 'hover', 'down'].indexOf(cont.state2) >= 0;
-    cont.setInteractive(new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h),
-      Phaser.Geom.Rectangle.Contains);
-    cont.on('pointerover', () => { if (cont.state2 === 'idle') { cont.state2 = 'hover'; paint(); } });
-    cont.on('pointerout',  () => { if (cont.state2 === 'hover') { cont.state2 = 'idle'; paint(); } });
-    cont.on('pointerdown', () => { if (cont.isLive()) { cont.state2 = 'down'; paint(); } });
-    cont.on('pointerup',   () => { if (cont.isLive()) this.pickChoice(index); });
-    return cont;
-  }
+    /* currency readouts */
+    UI.panel(this, 132, 38, 200, 46, UI.COLORS.panel, { radius: 12 });
+    this.add.image(62, 38, 'coin').setScale(0.9);
+    this.coinText = this.add.text(86, 38, '', {
+      fontFamily: UI.FONT, fontSize: '21px', color: '#ffd23f', fontStyle: 'bold',
+    }).setOrigin(0, 0.5);
 
-  pickChoice(i) {
-    if (!this.mathLayer || this.resolved) return;
-    const btn = this.choiceButtons[i];
-    if (!btn || !btn.isLive()) return;
-    const chosen = this.problem.choices[i];
+    UI.panel(this, W - 132, 38, 200, 46, UI.COLORS.panel, { radius: 12 });
+    this.add.image(W - 200, 38, 'starcoin').setScale(0.85);
+    this.starText = this.add.text(W - 178, 38, '', {
+      fontFamily: UI.FONT, fontSize: '21px', color: '#ffcf3f', fontStyle: 'bold',
+    }).setOrigin(0, 0.5);
 
-    if (chosen === this.problem.answer) {
-      this.resolved = true;
-      btn.state2 = 'good'; btn.repaint();
-      this.choiceButtons.forEach((b) => { if (b.isLive()) { b.state2 = 'dead'; b.repaint(); } });
-      this.completePurchase();
-    } else {
-      btn.state2 = 'bad'; btn.repaint();
-      this.mathStreak = 0;
-      this.updateStreakText();
-      SFX.wrong();
-      this.mathFeedback.setText('Not quite — try another!').setColor('#e0566b');
-      this.mathHint.setText('Hint: ' + this.problem.hint);
-      this.cameras.main.shake(150, 0.006);
-    }
-  }
-
-  completePurchase() {
-    const up = this.pendingUp;
-    SFX.correct();
-    SFX.buy();
-    this.confetti.explode(40, CONFIG.WIDTH / 2, 150);
-
-    Save.spendCoins(this.pendingCost);
-    Save.buyUpgrade(up.id);
-    this.mathStreak++;
-    const bonus = Math.min(5, this.mathStreak);
-    Save.addCoins(bonus);
-    this.updateStreakText();
-
-    this.mathFeedback
-      .setText('Correct!  ' + up.name + ' bought.  +' + bonus + ' streak coins')
-      .setColor('#36c98d');
-    this.mathHint.setText('');
-    this.refreshAllCards();
-    this.time.delayedCall(1250, () => this.closeMath());
-  }
-
-  closeMath() {
-    if (!this.mathLayer) return;
-    if (!this.resolved) SFX.click();
-    this.mathLayer.destroy();
-    this.mathLayer = null;
-  }
-
-  closeShop() {
-    if (this.mathLayer) return;
-    SFX.click();
-    this.cameras.main.fadeOut(200, 0, 0, 0);
-    this.cameras.main.once('camerafadeoutcomplete', () => {
-      if (this.fromScene === 'Game') this.scene.stop();
-      else if (this.fromScene === 'GameOver') this.scene.start('GameOver');
-      else this.scene.start('Menu');
+    /* tab bar */
+    this.tabBtns = {};
+    const tabs = [['coin', '💰 Coin Shop'], ['lab', '🧪 Math Lab'],
+                  ['upgrades', '⭐ Star Upgrades']];
+    tabs.forEach((t, i) => {
+      const x = W / 2 + (i - 1) * 248;
+      this.tabBtns[t[0]] = UI.button(this, x, 90, {
+        label: t[1], width: 236, height: 50, fontSize: 19,
+        color: UI.COLORS.panelLight, onClick: () => this.switchTab(t[0]),
+      });
     });
+
+    /* back button */
+    UI.button(this, W / 2, CONFIG.HEIGHT - 30, {
+      label: '← Back', width: 200, height: 44, fontSize: 19,
+      color: UI.COLORS.panelLight,
+      onClick: () => { SFX.click(); this.scene.start(this.fromScene); },
+    });
+
+    this.content = this.add.container(0, 0);
+    this.switchTab(this.tab);
+  }
+
+  refreshCurrency() {
+    this.coinText.setText(String(PlayerState.data.coins));
+    this.starText.setText(String(PlayerState.data.mathStars));
+  }
+
+  switchTab(tab) {
+    SFX.click();
+    this.tab = tab;
+    Object.keys(this.tabBtns).forEach((k) => {
+      this.tabBtns[k].setButtonColor(k === tab ? UI.COLORS.accent : UI.COLORS.panelLight);
+    });
+    this.content.removeAll(true);
+    this.refreshCurrency();
+    if (tab === 'coin') this.showCoinShop();
+    else if (tab === 'lab') this.showMathLab();
+    else this.showUpgrades();
+  }
+
+  /* ---- Tab 1: Coin Shop ------------------------------------------------- */
+  showCoinShop() {
+    const W = CONFIG.WIDTH;
+    this.content.add(UI.text(this, W / 2, 138,
+      'Consumables — handy in a fight, never required.', 17, '#cdb8ff'));
+    const cardW = 172, gap = 16;
+    const startX = W / 2 - (cardW * 5 + gap * 4) / 2 + cardW / 2;
+    CONSUMABLES.forEach((item, i) => {
+      this.itemCard(startX + i * (cardW + gap), 320, cardW, item, 'consumable');
+    });
+  }
+
+  /* ---- Tab 2: Math Lab -------------------------------------------------- */
+  showMathLab() {
+    const W = CONFIG.WIDTH;
+    this.content.add(UI.text(this, W / 2, 134,
+      'Train your hero to earn ⭐ stars. Wrong answers never cost you anything.',
+      17, '#cdb8ff'));
+
+    MATH_TOPICS.forEach((topic, i) => {
+      const col = i % 2, row = Math.floor(i / 2);
+      const x = W / 2 + (col === 0 ? -210 : 210);
+      const y = 218 + row * 116;
+      this.content.add(UI.panel(this, x, y, 396, 100, UI.COLORS.panel,
+        { stroke: topic.color, strokeWidth: 3 }));
+      this.content.add(this.add.text(x - 168, y - 26, topic.icon + '  ' + topic.name, {
+        fontFamily: UI.FONT, fontSize: '21px', color: '#ffffff', fontStyle: 'bold',
+      }).setOrigin(0, 0.5));
+      this.content.add(this.add.text(x - 168, y + 6,
+        '+' + topic.starsPerCorrect + ' ⭐ per correct  ·  ' +
+        topic.timerSeconds + 's each', {
+        fontFamily: UI.FONT, fontSize: '15px', color: '#cdb8ff',
+      }).setOrigin(0, 0.5));
+      const hist = PlayerState.data.mathLabStats.topicHistory[topic.id];
+      if (hist && hist.attempted) {
+        this.content.add(this.add.text(x - 168, y + 30,
+          'Solved ' + hist.correct + ' / ' + hist.attempted, {
+          fontFamily: UI.FONT, fontSize: '13px', color: '#9d8fce',
+        }).setOrigin(0, 0.5));
+      }
+      this.content.add(UI.button(this, x + 128, y + 18, {
+        label: 'Train', width: 110, height: 44, fontSize: 18,
+        color: topic.color, textColor: '#1a1330',
+        onClick: () => this.startLab(topic, false),
+      }));
+    });
+
+    /* daily challenge */
+    const dq = DailyQuests.refresh();
+    const ct = DailyQuests.challengeTopic();
+    const y = 462;
+    this.content.add(UI.panel(this, W / 2, y, 700, 64, 0x3a2a5a,
+      { stroke: UI.COLORS.gold, strokeWidth: 3 }));
+    this.content.add(this.add.text(W / 2 - 326, y - 8,
+      '⭐ Daily Challenge: ' + ct.name + ' × 10', {
+      fontFamily: UI.FONT, fontSize: '19px', color: '#ffcf3f', fontStyle: 'bold',
+    }).setOrigin(0, 0.5));
+    if (dq.challengeDone) {
+      this.content.add(this.add.text(W / 2 + 250, y, '✓ Done today',
+        { fontFamily: UI.FONT, fontSize: '18px', color: '#36c98d', fontStyle: 'bold' })
+        .setOrigin(0.5));
+    } else {
+      this.content.add(this.add.text(W / 2 - 326, y + 16,
+        'Reward: +50 ⭐ bonus  ·  resets at midnight', {
+        fontFamily: UI.FONT, fontSize: '13px', color: '#cdb8ff' }).setOrigin(0, 0.5));
+      this.content.add(UI.button(this, W / 2 + 272, y, {
+        label: 'Start  →', width: 150, height: 46, fontSize: 18,
+        color: UI.COLORS.gold, textColor: '#1a1330',
+        onClick: () => this.startLab(ct, true),
+      }));
+    }
+  }
+
+  startLab(topic, isChallenge) {
+    SFX.click();
+    this.scene.start('MathLab', { topic: topic, isChallenge: isChallenge });
+  }
+
+  /* ---- Tab 3: Star Upgrades -------------------------------------------- */
+  showUpgrades() {
+    const W = CONFIG.WIDTH;
+    const cats = [['weapon', 'Weapons'], ['armor', 'Armour'],
+                  ['character', 'Heroes'], ['companion', 'Pets']];
+    cats.forEach((c, i) => {
+      const x = W / 2 + (i - 1.5) * 168;
+      this.content.add(UI.button(this, x, 138, {
+        label: c[1], width: 156, height: 42, fontSize: 17,
+        color: c[0] === this.upgradeCat ? UI.COLORS.accent : UI.COLORS.panelLight,
+        onClick: () => { this.upgradeCat = c[0]; this.switchTab('upgrades'); },
+      }));
+    });
+
+    const lists = { weapon: WEAPONS, armor: ARMOR,
+                    character: CHARACTERS, companion: COMPANIONS };
+    const list = lists[this.upgradeCat];
+    const cardW = 176, gap = 14;
+    const startX = W / 2 - (cardW * list.length + gap * (list.length - 1)) / 2 + cardW / 2;
+    list.forEach((item, i) => {
+      this.itemCard(startX + i * (cardW + gap), 340, cardW, item, this.upgradeCat);
+    });
+  }
+
+  /* ---- shared item card ------------------------------------------------- */
+  itemCard(x, y, w, item, kind) {
+    const isConsumable = kind === 'consumable';
+    const cardH = isConsumable ? 252 : 300;
+    const unlockKind = { weapon: 'weapons', armor: 'armor',
+                         character: 'characters', companion: 'companions' }[kind];
+    const owned = isConsumable ? true : PlayerState.owns(unlockKind, item.id);
+    const equipped = !isConsumable && PlayerState.equipped(kind) === item.id;
+    const currency = isConsumable ? 'coins' : 'stars';
+    const have = isConsumable ? PlayerState.data.coins : PlayerState.data.mathStars;
+    const affordable = have >= item.cost;
+
+    const panel = UI.panel(this, x, y, w, cardH, UI.COLORS.panel,
+      { radius: 14, stroke: equipped ? UI.COLORS.good : UI.COLORS.panelLight,
+        strokeWidth: equipped ? 3 : 2 });
+    this.content.add(panel);
+
+    this.content.add(this.add.text(x, y - cardH / 2 + 24, item.name, {
+      fontFamily: UI.FONT, fontSize: '17px', color: '#ffffff', fontStyle: 'bold',
+      align: 'center', wordWrap: { width: w - 18 },
+    }).setOrigin(0.5, 0));
+
+    let stat = 'Consumable';
+    if (kind === 'weapon')    stat = '⚔ Damage ' + item.damage;
+    else if (kind === 'armor')stat = '🛡 Defense ' + item.defense;
+    else if (kind === 'character')
+      stat = item.bonusHp ? '❤ +' + Math.round(item.bonusHp / 20) + ' heart' : 'Hero';
+    else if (kind === 'companion') stat = 'Companion';
+    this.content.add(this.add.text(x, y - cardH / 2 + 62, stat, {
+      fontFamily: UI.FONT, fontSize: '15px', color: '#ffce3a', fontStyle: 'bold',
+    }).setOrigin(0.5));
+
+    this.content.add(this.add.text(x, y - cardH / 2 + 86, item.desc, {
+      fontFamily: UI.FONT, fontSize: '13px', color: '#cdb8ff',
+      align: 'center', wordWrap: { width: w - 22 },
+    }).setOrigin(0.5, 0));
+
+    if (isConsumable) {
+      this.content.add(this.add.text(x, y + cardH / 2 - 74,
+        'Owned: ' + PlayerState.consumableQty(item.id), {
+        fontFamily: UI.FONT, fontSize: '13px', color: '#9bd0ff', fontStyle: 'bold',
+      }).setOrigin(0.5));
+    } else {
+      this.content.add(this.add.text(x, y + cardH / 2 - 74,
+        '⚙ Gear Score +' + item.gearScore, {
+        fontFamily: UI.FONT, fontSize: '13px', color: '#9bd0ff', fontStyle: 'bold',
+      }).setOrigin(0.5));
+    }
+
+    const by = y + cardH / 2 - 36;
+    if (equipped) {
+      this.content.add(UI.button(this, x, by, { label: '✓ Equipped', width: w - 26,
+        height: 44, fontSize: 16, color: UI.COLORS.good, enabled: false }));
+    } else if (!isConsumable && owned) {
+      this.content.add(UI.button(this, x, by, { label: 'Equip', width: w - 26,
+        height: 44, fontSize: 17, color: UI.COLORS.accent,
+        onClick: () => this.equipItem(kind, item) }));
+    } else if (affordable) {
+      const icon = currency === 'coins' ? ' 💰' : ' ⭐';
+      this.content.add(UI.button(this, x, by, {
+        label: 'Buy  ' + item.cost + icon, width: w - 26, height: 44, fontSize: 16,
+        color: UI.COLORS.good,
+        onClick: () => this.buyItem(item, kind, unlockKind) }));
+    } else {
+      this.content.add(UI.button(this, x, by, {
+        label: (item.cost - have) + ' more ' + (currency === 'coins' ? '💰' : '⭐'),
+        width: w - 26, height: 44, fontSize: 15, color: UI.COLORS.panelLight,
+        enabled: false }));
+      panel.setAlpha(0.82);
+    }
+  }
+
+  buyItem(item, kind, unlockKind) {
+    if (kind === 'consumable') {
+      if (PlayerState.data.coins < item.cost) return;
+      PlayerState.spendCoins(item.cost);
+      PlayerState.addConsumable(item.id, 1);
+    } else {
+      if (PlayerState.data.mathStars < item.cost) return;
+      PlayerState.spendStars(item.cost);
+      PlayerState.unlock(unlockKind, item.id);
+      PlayerState.equip(kind, item.id);
+    }
+    SFX.buy();
+    this.switchTab(this.tab);
+  }
+
+  equipItem(slot, item) {
+    SFX.power();
+    PlayerState.equip(slot, item.id);
+    this.switchTab(this.tab);
   }
 }

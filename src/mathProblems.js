@@ -222,10 +222,41 @@ const MathProblems = (function () {
     3: [gFractionLike, gFractionUnlike, gOrderOfOps, gDecimalMul, gArea, gWord],
   };
 
+  /* generators grouped by Math Lab training topic */
+  const TOPIC_GENS = {
+    addSub:   [gAddition, gSubtraction, gDecimalAddSub],
+    multiply: [gMultFact, gMult2, gDecimalMul],
+    divFrac:  [gDivision, gRemainder, gFractionLike, gFractionUnlike],
+    mixed:    [gAddition, gSubtraction, gMultFact, gMult2, gDivision, gRemainder,
+               gFractionLike, gFractionUnlike, gOrderOfOps, gDecimalMul, gWord],
+  };
+
+  /* turns a raw generated problem into the Math Lab shape (with correctIndex) */
+  function toLabProblem(p) {
+    let idx = p.choices.indexOf(p.answer);
+    if (idx < 0) idx = 0;                   // safety: answer should always be present
+    return { q: p.q, choices: p.choices.slice(), correctIndex: idx,
+             topic: p.topic, hint: p.hint };
+  }
+
   return {
+    /* shop-style single problem by difficulty tier (kept for compatibility) */
     generate(tier) {
       const t = (tier >= 1 && tier <= 3) ? tier : 1;
       return pick(TIERS[t])();
+    },
+
+    /* one Math Lab problem for a topic id */
+    generateForTopic(topicId) {
+      const gens = TOPIC_GENS[topicId] || TOPIC_GENS.mixed;
+      return toLabProblem(pick(gens)());
+    },
+
+    /* a full Math Lab session: `count` problems for a topic id */
+    generateSession(topicId, count) {
+      const out = [];
+      for (let i = 0; i < count; i++) out.push(this.generateForTopic(topicId));
+      return out;
     },
   };
 })();

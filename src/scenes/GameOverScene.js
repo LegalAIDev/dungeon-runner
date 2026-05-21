@@ -1,83 +1,94 @@
 /* ============================================================================
-   GameOverScene — shown after a run ends: the score, run stats, the high
-   score, and buttons to play again, shop, or return to the menu.
+   GameOverScene — shown after a level. Displays the result, coins earned and,
+   on a win, an invitation to power up in the Math Lab.
    ========================================================================== */
 
 class GameOverScene extends Phaser.Scene {
   constructor() { super('GameOver'); }
 
+  init(data) { this.result = data || {}; }
+
   create() {
     const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
-    const data = this.registry.get('lastRun') || {
-      distance: 0, coins: 0, biome: BIOMES[0].name, bestCombo: 0,
-      newBest: false, biomeIndex: 0,
-    };
-    const biome = BIOMES[data.biomeIndex || 0];
+    const r = this.result;
+    const win = !!r.win;
 
-    UI.scenicBackground(this, biome);
-    this.add.rectangle(0, 0, W, H, 0x140d33, 0.62).setOrigin(0);
-    this.cameras.main.fadeIn(320, 0, 0, 0);
+    UI.scenicBackground(this, BIOMES[win ? 0 : 2]);
+    this.add.rectangle(0, 0, W, H, 0x140d33, 0.66).setOrigin(0);
+    this.cameras.main.fadeIn(300, 0, 0, 0);
 
-    /* a tuckered-out runner beside the title */
-    this.add.image(W / 2 - 220, 74, 'hero_hurt').setOrigin(0.5, 1).setScale(1.0);
+    const world = findItem(WORLDS, r.worldId) || WORLDS[0];
 
-    UI.text(this, W / 2, 66, 'Run Complete!', 40, '#ffd23f', { bold: true, shadow: true });
+    const title = win ? (r.boss ? 'BOSS DEFEATED!' : 'LEVEL CLEAR!') : 'DEFEATED';
+    this.add.text(W / 2, 92, title, {
+      fontFamily: UI.FONT, fontSize: '56px', fontStyle: 'bold',
+      color: win ? '#ffd23f' : '#ff6a7e', stroke: '#3a2150', strokeThickness: 10,
+    }).setOrigin(0.5);
 
-    UI.panel(this, W / 2, 274, 564, 312, UI.COLORS.panel,
-      { stroke: UI.COLORS.accent, strokeWidth: 4 });
+    this.add.text(W / 2, 142,
+      world.name + '  ·  ' + (r.boss ? 'Boss' : 'Level ' + ((r.levelIndex || 0) + 1)), {
+      fontFamily: UI.FONT, fontSize: '20px', color: '#cdb8ff',
+    }).setOrigin(0.5);
 
-    UI.text(this, W / 2, 158, data.distance + ' m', 52, '#ffffff', { bold: true });
-    UI.text(this, W / 2, 196, 'distance travelled', 14, '#9d8fce');
+    UI.panel(this, W / 2, 296, 540, 224, UI.COLORS.panel,
+      { stroke: win ? UI.COLORS.gold : UI.COLORS.bad, strokeWidth: 4 });
 
-    if (data.newBest && data.distance > 0) {
-      const nb = UI.text(this, W / 2, 236, '★   NEW BEST!   ★', 23, '#ffd23f', { bold: true });
-      this.tweens.add({ targets: nb, scale: 1.12, duration: 620,
-        yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-      const confetti = this.add.particles(0, 0, 'spark', {
-        speed: { min: 140, max: 360 }, angle: { min: 200, max: 340 },
-        lifespan: 1100, gravityY: 500, scale: { start: 1.2, end: 0 },
-        tint: [0xff5a6e, 0xffd23f, 0x36c98d, 0x5b6ef5, 0x46e0d0], emitting: false,
-      });
-      this.time.delayedCall(260, () => confetti.explode(60, W / 2, 120));
-    } else {
-      UI.text(this, W / 2, 236, 'Best:  ' + Save.data.highScore + ' m', 19,
-        '#cdb8ff', { bold: true });
+    const totalCoins = (r.coins || 0) + (win ? (r.bonus || 0) : 0);
+    const rows = [
+      ['Enemies defeated', String(r.kills || 0)],
+      ['Coins collected', (r.coins || 0) + ' 💰'],
+    ];
+    if (win) rows.push(['Level clear bonus', '+' + (r.bonus || 0) + ' 💰']);
+    rows.push(['Total this run', totalCoins + ' 💰']);
+
+    rows.forEach((row, i) => {
+      const y = 224 + i * 38;
+      this.add.text(W / 2 - 230, y, row[0],
+        { fontFamily: UI.FONT, fontSize: '20px', color: '#ffffff' }).setOrigin(0, 0.5);
+      this.add.text(W / 2 + 230, y, row[1],
+        { fontFamily: UI.FONT, fontSize: '20px', color: '#ffd23f', fontStyle: 'bold' })
+        .setOrigin(1, 0.5);
+    });
+    if (win && r.perfect) {
+      this.add.text(W / 2, 384, '✦ PERFECT CLEAR — no damage taken!  +50% coins ✦', {
+        fontFamily: UI.FONT, fontSize: '16px', color: '#36c98d', fontStyle: 'bold',
+      }).setOrigin(0.5);
     }
 
-    /* divider */
-    const line = this.add.graphics();
-    line.fillStyle(0xffffff, 0.12);
-    line.fillRect(W / 2 - 240, 266, 480, 2);
-
-    /* three run stats */
-    const stat = (x, value, color, label) => {
-      UI.text(this, x, 304, value, 26, color, { bold: true });
-      UI.text(this, x, 332, label, 13, '#9d8fce');
-    };
-    stat(W / 2 - 168, '+' + data.coins, '#ffd23f', 'coins earned');
-    stat(W / 2, 'x' + data.bestCombo, '#ff8f5a', 'best combo');
-    stat(W / 2 + 168, 'World ' + ((data.biomeIndex || 0) + 1), '#7fd0ff', 'reached');
-
-    this.add.image(W / 2 - 60, 380, 'coin').setScale(0.86);
-    UI.text(this, W / 2 - 40, 380, 'Total saved: ' + Save.data.coins, 16,
-      '#cdb8ff', { originX: 0 });
+    this.add.text(W / 2, 428,
+      win ? 'Enemies ahead are tougher — train in the Math Lab to power up!'
+          : 'Out-geared? Earn ⭐ stars in the Math Lab and gear up.', {
+      fontFamily: UI.FONT, fontSize: '16px', color: '#cdb8ff',
+    }).setOrigin(0.5);
 
     /* buttons */
-    UI.button(this, W / 2 - 202, 480, {
-      label: 'Menu', width: 172, height: 56, fontSize: 21,
-      color: UI.COLORS.panelLight, onClick: () => this.scene.start('Menu'),
-    });
-    UI.button(this, W / 2, 480, {
-      label: '▶  Play Again', width: 214, height: 60, fontSize: 23,
-      color: UI.COLORS.good, onClick: () => this.scene.start('Game'),
-    });
-    UI.button(this, W / 2 + 202, 480, {
-      label: 'Shop', width: 172, height: 56, fontSize: 21,
-      color: 0x8a63d6, onClick: () => this.scene.start('Shop', { from: 'GameOver' }),
+    const hasNext = win && !r.boss && (r.levelIndex || 0) < LEVELS_PER_WORLD - 1;
+    const btns = [];
+    if (hasNext) {
+      btns.push(['Next Level →', UI.COLORS.good, () => {
+        this.scene.start('Game',
+          { worldId: r.worldId, levelIndex: (r.levelIndex || 0) + 1 });
+      }]);
+    } else if (!win) {
+      btns.push(['Retry', UI.COLORS.good, () => {
+        this.scene.start('Game', { worldId: r.worldId, levelIndex: r.levelIndex || 0 });
+      }]);
+    }
+    btns.push(['🧪 Math Lab', 0x8a63d6, () => {
+      this.scene.start('Shop', { from: 'WorldMap', tab: 'lab' });
+    }]);
+    btns.push(['World Map', UI.COLORS.accent, () => { this.scene.start('WorldMap'); }]);
+
+    const step = 244;
+    let bx = W / 2 - (btns.length - 1) * step / 2;
+    btns.forEach((b) => {
+      UI.button(this, bx, 492, {
+        label: b[0], width: 228, height: 54, fontSize: 20, color: b[1],
+        onClick: () => { SFX.click(); b[2](); },
+      });
+      bx += step;
     });
 
-    this.input.keyboard.on('keydown-SPACE', () => this.scene.start('Game'));
-    this.input.keyboard.on('keydown-ENTER', () => this.scene.start('Game'));
-    this.events.once('shutdown', () => this.input.keyboard.removeAllListeners());
+    if (win) SFX.levelUp(); else SFX.gameOver();
   }
 }

@@ -1,505 +1,881 @@
 /* ============================================================================
-   GameScene — the actual running game: the runner, obstacles, coins, power-ups,
-   the four worlds, scoring and the pause menu.
+   GameScene — pure-action side-scrolling combat. No math here: the player wins
+   or loses on action skill and gear quality alone.
    ========================================================================== */
 
 class GameScene extends Phaser.Scene {
   constructor() { super('Game'); }
 
+  init(data) {
+    this.worldId    = data.worldId || 'forest';
+    this.levelIndex = data.levelIndex || 0;
+  }
+
   create() {
-    const W = CONFIG.WIDTH, H = CONFIG.HEIGHT, GY = CONFIG.GROUND_Y;
+    this.world      = findItem(WORLDS, this.worldId);
+    this.worldIndex = WORLDS.indexOf(this.world);
+    this.biome      = BIOMES[this.world.biome];
+    this.isBossLevel = this.levelIndex === LEVELS_PER_WORLD - 1;
 
-    /* fresh HUD overlay every run */
-    if (this.scene.isActive('Hud')) this.scene.stop('Hud');
-    this.scene.launch('Hud');
+    /* gear loadout */
+    this.weapon    = PlayerState.equippedWeapon();
+    this.armor     = PlayerState.equippedArmor();
+    this.character = PlayerState.equippedCharacter();
+    this.companion = PlayerState.equippedCompanion();
 
-    /* per-run state (HudScene reads this object every frame) */
-    this.stats = computeRunStats();
-    this.run = {
-      distance: 0, coins: 0,
-      lives: CONFIG.BASE_LIVES + Save.owned('heart'),
-      maxLives: this.stats.maxLives,
-      biomeIndex: 0, biomeName: BIOMES[0].name,
-      combo: 0, shield: this.stats.startShield,
-      magnetUntil: 0, slowUntil: 0, x2Until: 0,
-      over: false,
-    };
-    this.bestCombo = 0;
+    /* run state */
+    this.clock = 0;                 // game time in ms (pauses with the game)
+    this.freezeUntil = 0;           // hit-stop end time
     this.paused = false;
-    this.worldSpeed = CONFIG.SPEED_START * this.stats.speedMult;
-    this.invulnUntil = 0;
-    this.jumpsUsed = 0;
-    this.maxJumps = this.stats.doubleJump ? 2 : 1;
-    this.sliding = false;
-    this.wasGrounded = true;
-    this.lastCoinTime = -9999;
+    this.finished = false;
+    this.runCoins = 0;
+    this.combo = 0;
+    this.killCount = 0;
+    this.tookDamageLevel = false;
+    this.waveDamageless = true;
+    this.enemies = [];
+    this.projectiles = [];
+    this.coinPickups = [];
+    this.waveClearing = false;
+    this.enemiesToSpawn = 0;
+    this.usedRevive = false;
+    this.speedBoostUntil = 0;
+    this.magnetUntil = 0;
+    this.shieldCharges = 0;
+    this.boss = null;
 
-    this.obstacles = [];
-    this.pickups = [];     // coins and gems
-    this.powerups = [];
-    this.distToObstacle = 520;
-    this.distToCoins = 0;
-    this.coinsQueued = false;
-    this.distToPowerup = Phaser.Math.Between(1700, 2600);
+    /* scenery */
+    this.bg = UI.scenicBackground(this, this.biome);
+    this.cameras.main.fadeIn(280, 0, 0, 0);
 
-    /* ---- background layers ---- */
-    this.sky = this.add.graphics().setDepth(0);
-    this.sunGlow = this.add.image(W - 175, 120, 'glow').setScale(2.7).setDepth(1).setAlpha(0.85);
-    this.sunDisc = this.add.circle(W - 175, 120, 42, 0xffffff, 1).setDepth(1);
-    this.stars = this.add.container(0, 0).setDepth(1);
-    for (let i = 0; i < 55; i++) {
-      this.stars.add(this.add.image(Math.random() * W, Math.random() * GY * 0.8, 'star')
-        .setAlpha(0.25 + Math.random() * 0.6).setScale(0.4 + Math.random()));
-    }
-    this.hillFar = this.add.tileSprite(W / 2, GY + 8, W, 220, 'hillfar_meadow')
-      .setOrigin(0.5, 1).setDepth(2).setAlpha(0.9);
-    this.clouds = [];
-    for (let i = 0; i < 5; i++) {
-      this.clouds.push(this.add.image(Math.random() * W, 40 + Math.random() * 150, 'cloud')
-        .setScale(0.45 + Math.random() * 0.6).setAlpha(0.85).setDepth(2));
-    }
-    this.hillNear = this.add.tileSprite(W / 2, GY + 24, W, 250, 'hillnear_meadow')
-      .setOrigin(0.5, 1).setDepth(3);
-    this.groundTile = this.add.tileSprite(W / 2, GY, W, H - GY + 6, 'ground_meadow')
-      .setOrigin(0.5, 0).setDepth(4);
+    this.createPlayer();
+    this.buildWaveQueue();
+    this.setupInput();
+    this.buildConsumableSlots();
 
-    /* ---- the runner ---- */
-    this.player = this.physics.add.sprite(CONFIG.PLAYER_X, GY, 'hero_run0')
-      .setOrigin(0.5, 1).setDepth(12);
-    this.player.body.setSize(32, 56).setOffset(20, 24);
-    this.player.play('run');
+    /* companion: Wise Owl grants a shield each level */
+    if (this.companion && this.companion.id === 'owl') this.shieldCharges += 1;
 
-    const ground = this.add.rectangle(W / 2, GY + 220, W + 600, 440, 0, 0);
-    this.physics.add.existing(ground, true);
-    this.physics.add.collider(this.player, ground);
+    this.scene.launch('Hud', { game: this });
+    this.scene.bringToTop('Hud');
 
-    /* shield bubble that follows the runner */
-    this.shieldFx = this.add.image(this.player.x, GY - 30, 'glow')
-      .setTint(0x6fb0ff).setScale(1.0).setDepth(13).setVisible(this.run.shield);
+    this.waveIndex = -1;
+    this.time.delayedCall(700, () => this.nextWave());
 
-    /* ---- particle emitters (reused for every burst) ---- */
-    this.coinBurst = this.makeEmitter('spark', 0xffd23f);
-    this.gemBurst  = this.makeEmitter('spark', 0x46e0d0);
-    this.starBurst = this.makeEmitter('spark', 0xffffff);
-    this.hitBurst  = this.makeEmitter('bit', 0xff6a3c);
-    this.dust      = this.makeEmitter('bit', 0xe9e2ff);
-
-    /* ---- input ---- */
-    this.input.keyboard.on('keydown-SPACE', () => this.jump());
-    this.input.keyboard.on('keydown-UP', () => this.jump());
-    this.input.keyboard.on('keydown-W', () => this.jump());
-    this.input.keyboard.on('keydown-DOWN', () => this.setSlide(true));
-    this.input.keyboard.on('keyup-DOWN', () => this.setSlide(false));
-    this.input.keyboard.on('keydown-S', () => this.setSlide(true));
-    this.input.keyboard.on('keyup-S', () => this.setSlide(false));
-    this.input.keyboard.on('keydown-P', () => this.togglePause());
-    this.input.keyboard.on('keydown-ESC', () => this.togglePause());
-
-    this.applyBiome(0);
-    this.cameras.main.fadeIn(300, 0, 0, 0);
-
-    this.events.once('shutdown', () => { this.input.keyboard.removeAllListeners(); });
-  }
-
-  makeEmitter(texture, tint) {
-    return this.add.particles(0, 0, texture, {
-      speed: { min: 60, max: 230 },
-      angle: { min: 0, max: 360 },
-      lifespan: { min: 320, max: 620 },
-      scale: { start: 1.05, end: 0 },
-      alpha: { start: 1, end: 0 },
-      tint: tint,
-      emitting: false,
-    }).setDepth(15);
-  }
-
-  /* =====================  controls  ====================================== */
-  jump() {
-    if (this.paused || this.run.over) return;
-    const grounded = this.player.y >= CONFIG.GROUND_Y - 1.5;
-    if (grounded) {
-      this.player.body.setVelocityY(-CONFIG.JUMP_VELOCITY * this.stats.jumpMult);
-      this.jumpsUsed = 1;
-      SFX.jump();
-      this.dust.explode(8, this.player.x, CONFIG.GROUND_Y);
-    } else if (this.jumpsUsed < this.maxJumps) {
-      this.player.body.setVelocityY(-CONFIG.DOUBLE_JUMP_VELOCITY * this.stats.jumpMult);
-      this.jumpsUsed++;
-      SFX.doubleJump();
-      this.starBurst.explode(12, this.player.x, this.player.y - 24);
-    }
-  }
-
-  setSlide(on) {
-    if (this.paused || this.run.over) return;
-    if (on === this.sliding) return;
-    this.sliding = on;
-    if (on) this.player.body.setSize(46, 30).setOffset(13, 50);
-    else this.player.body.setSize(32, 56).setOffset(20, 24);
-  }
-
-  togglePause() {
-    if (this.run.over) return;
-    if (this.paused) {
-      this.paused = false;
-      this.physics.resume();
-      this.player.anims.resume();
-      /* the scene clock kept running while paused — shift timers forward so
-         power-ups and invulnerability do not lose time */
-      const dp = this.time.now - this.pauseStart;
-      this.run.magnetUntil += dp;
-      this.run.slowUntil += dp;
-      this.run.x2Until += dp;
-      this.invulnUntil += dp;
-      this.lastCoinTime += dp;
-      const hud = this.scene.get('Hud');
-      if (hud && hud.setPauseOverlay) hud.setPauseOverlay(false);
-    } else {
-      this.paused = true;
-      this.pauseStart = this.time.now;
-      this.physics.pause();
-      this.player.anims.pause();
-      const hud2 = this.scene.get('Hud');
-      if (hud2 && hud2.setPauseOverlay) hud2.setPauseOverlay(true);
-    }
-  }
-
-  /* =====================  the worlds  ==================================== */
-  applyBiome(i) {
-    const b = BIOMES[i];
-    const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
-    this.sky.clear();
-    this.sky.fillGradientStyle(b.skyTop, b.skyTop, b.skyBottom, b.skyBottom, 1);
-    this.sky.fillRect(0, 0, W, H);
-    this.sunDisc.setFillStyle(b.sun, 1);
-    this.sunGlow.setTint(b.sun);
-    this.stars.setVisible(!!b.night);
-    this.hillFar.setTexture('hillfar_' + b.key);
-    this.hillNear.setTexture('hillnear_' + b.key);
-    this.groundTile.setTexture('ground_' + b.key);
-    this.clouds.forEach((c) => c.setTint(b.night ? 0x70609e : 0xffffff));
-  }
-
-  onBiomeChange() {
-    const b = BIOMES[this.run.biomeIndex];
-    this.run.biomeName = b.name;
-    this.applyBiome(this.run.biomeIndex);
-    this.cameras.main.flash(360, 255, 255, 255);
-    this.starBurst.explode(34, CONFIG.PLAYER_X, CONFIG.GROUND_Y - 60);
-    SFX.levelUp();
-    const hud = this.scene.get('Hud');
-    if (hud && hud.showBanner) hud.showBanner('World ' + (this.run.biomeIndex + 1), b.name);
-  }
-
-  /* =====================  spawning  ====================================== */
-  spawnObstacle() {
-    const W = CONFIG.WIDTH, GY = CONFIG.GROUND_Y, x = W + 90;
-    const type = Phaser.Utils.Array.GetRandom(
-      ['spike', 'spike', 'lava', 'saw', 'saw', 'drone']);
-    let spr;
-    if (type === 'spike') {
-      spr = this.add.image(x, GY + 2, 'spike').setOrigin(0.5, 1);
-    } else if (type === 'lava') {
-      spr = this.add.image(x, GY + 6, 'lava').setOrigin(0.5, 1);
-    } else if (type === 'saw') {
-      spr = this.add.image(x, GY - 66, 'saw');
-    } else {
-      spr = this.add.image(x, GY - 60, 'drone');
-      spr.baseY = GY - 60;
-      spr.phase = Math.random() * Math.PI * 2;
-    }
-    spr.setDepth(10);
-    spr.htype = type;
-    spr.spent = false;
-    this.obstacles.push(spr);
-
-    const gapSec = Phaser.Math.FloatBetween(1.05, 1.7) * (1 - this.run.biomeIndex * 0.07);
-    const gap = Math.max(0.62, gapSec) * this.worldSpeed;
-    this.distToObstacle = gap;
-    this.distToCoins = gap * Phaser.Math.FloatBetween(0.42, 0.58);
-    this.coinsQueued = true;
-  }
-
-  spawnCoinPattern() {
-    const W = CONFIG.WIDTH, GY = CONFIG.GROUND_Y;
-    const n = Phaser.Math.Between(4, 6);
-    const gap = 46;
-    const arc = Math.random() < 0.5;
-    const gemAt = Math.random() < 0.16 ? Phaser.Math.Between(0, n - 1) : -1;
-    for (let i = 0; i < n; i++) {
-      const x = W + 70 + i * gap;
-      let y;
-      if (arc) {
-        const t = n > 1 ? i / (n - 1) : 0.5;
-        y = GY - 46 - Math.sin(t * Math.PI) * 132;
-      } else {
-        y = GY - 52 - Math.random() * 22;
-      }
-      const isGem = i === gemAt;
-      const c = this.add.image(x, y, isGem ? 'gem' : 'coin').setDepth(10);
-      c.isGem = isGem;
-      this.tweens.add({ targets: c, scaleX: 0.82, scaleY: 1.12,
-        duration: 420, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-      this.pickups.push(c);
-    }
-  }
-
-  spawnPowerup() {
-    const W = CONFIG.WIDTH, GY = CONFIG.GROUND_Y;
-    const type = Phaser.Utils.Array.GetRandom(['shield', 'magnet', 'slow', 'x2', 'heart']);
-    const y = GY - 90 - Math.random() * 80;
-    const c = this.add.container(W + 80, y).setDepth(11);
-    const halo = this.add.image(0, 0, 'glow').setScale(1.2).setAlpha(0.55);
-    const icon = this.add.image(0, 0, 'pu_' + type);
-    c.add([halo, icon]);
-    c.putype = type;
-    c.halo = halo;
-    this.tweens.add({ targets: c, y: y - 16, duration: 900,
-      yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-    this.tweens.add({ targets: halo, scale: 1.5, alpha: 0.2,
-      duration: 700, yoyo: true, repeat: -1 });
-    this.powerups.push(c);
-  }
-
-  /* =====================  the main loop  ================================= */
-  update(time, delta) {
-    if (this.paused || this.run.over) return;
-    const dt = Math.min(delta, 50) / 1000;     // clamp so a lag spike can't skip
-    const GY = CONFIG.GROUND_Y;
-
-    /* speed and distance */
-    this.worldSpeed = Math.min(CONFIG.SPEED_MAX,
-      this.worldSpeed + CONFIG.SPEED_ACCEL * this.stats.speedMult * dt);
-    const slow = time < this.run.slowUntil ? 0.55 : 1;
-    const eff = this.worldSpeed * slow;
-    const moved = eff * dt;
-    this.run.distance += moved * CONFIG.METERS_PER_PX;
-
-    /* biome progress */
-    while (this.run.biomeIndex < BIOMES.length - 1 &&
-           this.run.distance >= BIOMES[this.run.biomeIndex + 1].startMeters) {
-      this.run.biomeIndex++;
-      this.onBiomeChange();
-    }
-
-    /* scrolling background */
-    this.hillFar.tilePositionX += moved * 0.18;
-    this.hillNear.tilePositionX += moved * 0.42;
-    this.groundTile.tilePositionX += moved;
-    this.clouds.forEach((c) => {
-      c.x -= moved * 0.12;
-      if (c.x < -110) { c.x = CONFIG.WIDTH + 110; c.y = 40 + Math.random() * 150; }
+    this.events.once('shutdown', () => {
+      this.input.keyboard.removeAllListeners();
+      if (this.scene.isActive('Hud')) this.scene.stop('Hud');
     });
+  }
 
-    /* spawning */
-    this.distToObstacle -= moved;
-    if (this.distToObstacle <= 0) this.spawnObstacle();
-    if (this.coinsQueued) {
-      this.distToCoins -= moved;
-      if (this.distToCoins <= 0) { this.spawnCoinPattern(); this.coinsQueued = false; }
-    }
-    this.distToPowerup -= moved;
-    if (this.distToPowerup <= 0) {
-      this.spawnPowerup();
-      this.distToPowerup = Phaser.Math.Between(2200, 3500);
-    }
+  /* ---- setup ------------------------------------------------------------ */
+  createPlayer() {
+    const tints = { fighter: 0xffffff, ninja: 0x8186b8, wizard: 0xc79ff0,
+                    knight: 0xcfd6ff, archer: 0xa9e6b8 };
+    const p = this.add.sprite(250, CONFIG.GROUND_Y, 'hero_idle').setOrigin(0.5, 1);
+    p.setTint(tints[this.character.id] || 0xffffff);
+    p.shadow = this.add.image(250, CONFIG.GROUND_Y + 2, 'shadowblob')
+      .setOrigin(0.5).setScale(0.85).setDepth(1);
 
-    /* runner state */
-    const grounded = this.player.y >= GY - 1.5;
-    if (grounded) {
-      this.jumpsUsed = 0;
-      if (!this.wasGrounded) { this.dust.explode(10, this.player.x, GY); SFX.land(); }
-    }
-    this.wasGrounded = grounded;
-    this.updatePlayerVisual(time);
-    this.shieldFx.setPosition(this.player.x, this.player.y - 28).setVisible(this.run.shield);
-    if (this.run.shield) this.shieldFx.rotation += dt * 1.5;
+    p.maxHp = 100 + (this.character.bonusHp || 0);
+    p.hp = p.maxHp;
+    p.facing = 1;
+    p.vy = 0;
+    p.onGround = true;
+    p.pose = 'idle';
+    p.attack = null;                 // { type, start, hitDone }
+    p.kbVx = 0;
+    p.hurtUntil = 0;
+    p.invulnUntil = 0;
+    p.dodgeUntil = 0;
+    p.dodgeDir = 1;
+    p.frozenUntil = 0;
+    p.attackCooldownUntil = 0;
+    this.player = p;
+  }
 
-    /* move + check obstacles */
-    for (let i = this.obstacles.length - 1; i >= 0; i--) {
-      const o = this.obstacles[i];
-      o.x -= moved;
-      if (o.htype === 'saw') o.rotation += dt * 13 * slow;
-      if (o.htype === 'drone') o.y = o.baseY + Math.sin(time * 0.005 + o.phase) * 7;
-      if (o.x < -130) { o.destroy(); this.obstacles.splice(i, 1); continue; }
-      /* invulnerability is re-checked live so one frame cannot cost two lives */
-      if (!o.spent && time >= this.invulnUntil && !this.run.over && this.hitsPlayer(o)) {
-        o.spent = true;
-        this.takeHit();
-        if (this.run.over) return;
-      }
-    }
+  buildWaveQueue() {
+    this.waves = EnemyFactory.buildWaves(this.world, this.worldIndex, this.levelIndex);
+  }
 
-    /* move + collect pickups */
-    const pcx = this.player.x, pcy = this.player.y - 28;
-    const magnet = time < this.run.magnetUntil ? 250 : this.stats.magnetRange;
-    for (let i = this.pickups.length - 1; i >= 0; i--) {
-      const c = this.pickups[i];
-      c.x -= moved;
-      if (magnet > 0) {
-        const d = Phaser.Math.Distance.Between(c.x, c.y, pcx, pcy);
-        if (d < magnet) {
-          c.x += (pcx - c.x) * 0.16;
-          c.y += (pcy - c.y) * 0.16;
-        }
-      }
-      if (c.x < -40) {
-        this.tweens.killTweensOf(c); c.destroy(); this.pickups.splice(i, 1); continue;
-      }
-      if (Phaser.Math.Distance.Between(c.x, c.y, pcx, pcy) < 34) {
-        this.collectCoin(c);
-        this.pickups.splice(i, 1);
-      }
-    }
+  setupInput() {
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.keys = this.input.keyboard.addKeys('Z,X,ESC,ONE,TWO,THREE');
+    this.input.keyboard.on('keydown-ESC', () => this.togglePause());
+  }
 
-    /* move + collect power-ups */
-    for (let i = this.powerups.length - 1; i >= 0; i--) {
-      const c = this.powerups[i];
-      c.x -= moved;
-      if (c.x < -60) { this.removePowerup(i); continue; }
-      if (Phaser.Math.Distance.Between(c.x, c.y, pcx, pcy) < 44) {
-        this.activatePowerup(c.putype, c.x, c.y);
-        this.removePowerup(i);
+  buildConsumableSlots() {
+    const owned = PlayerState.data.inventory.consumables;
+    this.consumableSlots = [];
+    CONSUMABLES.forEach((c) => {
+      if (this.consumableSlots.length < 3 && (owned[c.id] || 0) > 0) {
+        this.consumableSlots.push(c.id);
       }
+    });
+  }
+
+  /* ---- waves ------------------------------------------------------------ */
+  nextWave() {
+    if (this.finished) return;
+    this.waveIndex++;
+    if (this.waveIndex >= this.waves.length) { this.levelComplete(); return; }
+
+    this.waveDamageless = true;
+    /* Dragon Scale auto-blocks the first hit of each wave */
+    if (this.armor.autoBlock) this.shieldCharges = Math.max(this.shieldCharges, 1);
+
+    const wave = this.waves[this.waveIndex];
+    if (wave.boss) {
+      this.enemiesToSpawn = 0;
+      this.spawnBoss(wave.boss);
+    } else {
+      this.enemiesToSpawn = wave.length;
+      wave.forEach((typeKey, i) => {
+        this.time.delayedCall(i * 360, () => {
+          this.enemiesToSpawn--;
+          if (!this.finished) this.spawnEnemy(typeKey, 1000 + i * 70);
+        });
+      });
+    }
+    this.flashBanner(wave.boss ? 'BOSS FIGHT!'
+      : 'WAVE ' + (this.waveIndex + 1) + ' / ' + this.waves.length);
+  }
+
+  spawnEnemy(typeKey, x) {
+    const cfg = EnemyFactory.make(typeKey, this.worldIndex, this.levelIndex);
+    return this.addEnemySprite(cfg, x, 'foe_' + typeKey);
+  }
+
+  spawnBoss(bossKey) {
+    const cfg = EnemyFactory.makeBoss(bossKey, this.worldIndex);
+    const e = this.addEnemySprite(cfg, 980, 'boss_' + bossKey);
+    e.phase = 1;
+    e.spawnedAdds = false;
+    e.enraged = false;
+    this.boss = e;
+  }
+
+  addEnemySprite(cfg, x, texture) {
+    const e = this.add.sprite(x, CONFIG.GROUND_Y, texture).setOrigin(0.5, 1);
+    e.cfg = cfg;
+    e.baseTexture = texture;
+    e.hp = cfg.hp; e.maxHp = cfg.maxHp;
+    e.dmg = cfg.damage;
+    e.speed = cfg.speed;
+    e.range = cfg.range;
+    e.behaviour = cfg.behaviour;
+    e.facing = -1;
+    e.state = 'walkin';
+    e.stateAt = this.clock;
+    e.struck = false;
+    e.staggerDur = 200;
+    e.attackReadyAt = this.clock + 600;
+    e.kbVx = 0;
+    e.frozenUntil = 0;
+    e.guardBroken = false;
+    e.enraged = false;
+    e.alive = true;
+    e.isBoss = !!cfg.isBoss;
+    e.shadow = this.add.image(x, CONFIG.GROUND_Y + 2, 'shadowblob')
+      .setOrigin(0.5).setScale(e.isBoss ? 1.7 : 0.9).setDepth(1);
+    if (!e.isBoss) {
+      e.hpBg = this.add.rectangle(x, 0, 46, 7, 0x000000, 0.6).setOrigin(0.5).setDepth(550);
+      e.hpFg = this.add.rectangle(x, 0, 44, 5, 0xe0566b).setOrigin(0, 0.5).setDepth(551);
+      e.hpBg.setVisible(false); e.hpFg.setVisible(false);
+    }
+    this.enemies.push(e);
+    return e;
+  }
+
+  /* ---- main loop -------------------------------------------------------- */
+  update(time, delta) {
+    if (this.paused || this.finished) return;
+    if (this.clock < this.freezeUntil) return;          // hit-stop
+
+    const dt = Math.min(delta / 1000, 0.04);
+    this.clock += dt * 1000;
+    const now = this.clock;
+
+    this.scrollBackground(dt);
+    this.updatePlayer(dt, now);
+    this.enemies.forEach((e) => { if (e.alive) this.updateEnemy(e, dt, now); });
+    this.updateProjectiles(dt);
+    this.updateCoins(dt, now);
+    this.cullEnemies();
+
+    if (!this.finished && !this.waveClearing && this.waveIndex >= 0 &&
+        this.enemies.length === 0 && this.enemiesToSpawn <= 0) {
+      this.onWaveCleared();
     }
   }
 
-  removePowerup(i) {
-    const c = this.powerups[i];
-    this.tweens.killTweensOf(c);
-    if (c.halo) this.tweens.killTweensOf(c.halo);
-    c.destroy();
-    this.powerups.splice(i, 1);
+  scrollBackground(dt) {
+    this.bg.hillFar.tilePositionX += 4 * dt;
+    this.bg.hillNear.tilePositionX += 9 * dt;
+    this.bg.clouds.forEach((cl) => {
+      cl.x -= 7 * dt;
+      if (cl.x < -100) cl.x = CONFIG.WIDTH + 100;
+    });
   }
 
-  updatePlayerVisual(time) {
+  /* ---- player ----------------------------------------------------------- */
+  updatePlayer(dt, now) {
     const p = this.player;
-    p.setAlpha(time < this.invulnUntil ? 0.45 + 0.4 * Math.abs(Math.sin(time * 0.025)) : 1);
-    const grounded = p.y >= CONFIG.GROUND_Y - 1.5;
-    if (this.sliding) {
-      if (p.anims.isPlaying) p.anims.stop();
-      if (p.texture.key !== 'hero_slide') p.setTexture('hero_slide');
-    } else if (!grounded) {
-      if (p.anims.isPlaying) p.anims.stop();
-      const key = p.body.velocity.y < 0 ? 'hero_jump' : 'hero_fall';
-      if (p.texture.key !== key) p.setTexture(key);
-    } else if (!p.anims.isPlaying) {
-      p.play('run');
+    const frozen = now < p.frozenUntil;
+    const hurt = now < p.hurtUntil;
+    const dodging = now < p.dodgeUntil;
+
+    if (!hurt && !frozen) this.handleInput(now, dodging);
+
+    /* horizontal motion */
+    let speed = CONFIG.PLAYER_SPEED;
+    if (now < this.speedBoostUntil) speed *= 1.5;
+    if (dodging) {
+      p.x += p.dodgeDir * 460 * dt;
+    } else if (hurt) {
+      p.x += p.kbVx * dt;
+      p.kbVx *= 0.86;
+    } else if (!frozen && !p.attack) {
+      let mx = 0;
+      if (this.cursors.left.isDown)  mx -= 1;
+      if (this.cursors.right.isDown) mx += 1;
+      p.x += mx * speed * dt;
+      if (mx !== 0) p.facing = mx;
+    }
+    p.x = Phaser.Math.Clamp(p.x, CONFIG.ARENA_LEFT, CONFIG.ARENA_RIGHT);
+
+    /* vertical motion (jump arc) */
+    if (!p.onGround) {
+      p.vy += CONFIG.GRAVITY * dt;
+      p.y += p.vy * dt;
+      if (p.y >= CONFIG.GROUND_Y) {
+        p.y = CONFIG.GROUND_Y;
+        p.onGround = true;
+        p.vy = 0;
+        SFX.land();
+      }
+    }
+
+    /* resolve an in-progress attack */
+    if (p.attack) {
+      const a = p.attack;
+      const hitFrame = a.type === 'heavy' ? 200 : 110;
+      const dur = a.type === 'heavy'
+        ? 440 * (1 - (this.character.heavySpeed || 0)) : 280;
+      if (!a.hitDone && now - a.start >= hitFrame) {
+        a.hitDone = true;
+        this.performAttack(a.type);
+      }
+      if (now - a.start >= dur) p.attack = null;
+    }
+
+    this.setPlayerPose(now, hurt, dodging);
+    p.shadow.x = p.x;
+    p.shadow.setAlpha(p.onGround ? 0.5 : 0.25);
+    p.setDepth(p.y);
+    p.setFlipX(p.facing < 0);
+
+    if (Phaser.Input.Keyboard.JustDown(this.keys.ONE))   this.useConsumable(0);
+    if (Phaser.Input.Keyboard.JustDown(this.keys.TWO))   this.useConsumable(1);
+    if (Phaser.Input.Keyboard.JustDown(this.keys.THREE)) this.useConsumable(2);
+  }
+
+  handleInput(now, dodging) {
+    const p = this.player;
+    if ((Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
+         Phaser.Input.Keyboard.JustDown(this.cursors.space)) &&
+        p.onGround && !p.attack) {
+      p.onGround = false;
+      p.vy = -CONFIG.JUMP_VELOCITY;
+      SFX.jump();
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.down) &&
+        !dodging && p.onGround && now > p.dodgeUntil + 250 && !p.attack) {
+      this.startDodge(now);
+    }
+    if (!p.attack && p.onGround && now > p.attackCooldownUntil) {
+      if (Phaser.Input.Keyboard.JustDown(this.keys.Z)) this.startAttack('light', now);
+      else if (Phaser.Input.Keyboard.JustDown(this.keys.X)) this.startAttack('heavy', now);
     }
   }
 
-  /* hazard rectangle for an obstacle, then overlap test against the runner */
-  hitsPlayer(o) {
-    const GY = CONFIG.GROUND_Y;
-    let cx = o.x, cy, hw, hh;
-    if (o.htype === 'spike')      { hw = 21; hh = 22; cy = GY - 22; }
-    else if (o.htype === 'lava') { hw = 56; hh = 9;  cy = GY - 9; }
-    else if (o.htype === 'saw')  { hw = 23; hh = 22; cy = GY - 66; }
-    else                          { hw = 23; hh = 19; cy = o.y; }
-    const b = this.player.body;
-    return (cx - hw < b.right && cx + hw > b.left &&
-            cy - hh < b.bottom && cy + hh > b.top);
+  startAttack(type, now) {
+    const p = this.player;
+    p.attack = { type: type, start: now, hitDone: false };
+    p.attackCooldownUntil = now + (type === 'heavy' ? 520 : 320);
+    SFX.swing();
   }
 
-  /* =====================  outcomes  ====================================== */
-  takeHit() {
-    if (this.run.shield) {
-      this.run.shield = false;
-      this.invulnUntil = this.time.now + 900;
-      SFX.shieldPop();
-      this.starBurst.explode(20, this.player.x, this.player.y - 28);
-      this.cameras.main.shake(160, 0.008);
-      this.popText(this.player.x, this.player.y - 80, 'Shield!', '#6fb0ff', 22);
+  startDodge(now) {
+    const p = this.player;
+    let dir = p.facing;
+    if (this.cursors.left.isDown)  dir = -1;
+    if (this.cursors.right.isDown) dir = 1;
+    p.dodgeDir = dir;
+    p.dodgeUntil = now + 360;
+    p.invulnUntil = now + 400;
+    SFX.land();
+  }
+
+  setPlayerPose(now, hurt, dodging) {
+    const p = this.player;
+    let pose = 'idle';
+    if (hurt) pose = 'hurt';
+    else if (dodging) pose = 'dodge';
+    else if (!p.onGround) pose = 'jump';
+    else if (p.attack) pose = 'attack';
+    else if (this.cursors.left.isDown || this.cursors.right.isDown) pose = 'walk';
+
+    if (pose !== p.pose) {
+      p.pose = pose;
+      if (pose === 'walk') p.play('hero-walk');
+      else { p.anims.stop(); p.setTexture('hero_' + pose); }
+    }
+    p.setAlpha(now < p.invulnUntil && !dodging ? 0.6 : 1);
+  }
+
+  /* ---- player attacks --------------------------------------------------- */
+  performAttack(type) {
+    const p = this.player;
+    let dmg = this.weapon.damage * (type === 'heavy' ? 1.7 : 1) + this.worldIndex;
+    let crit = false;
+    if (this.character.crit && Math.random() < this.character.crit) {
+      dmg *= 1.7; crit = true;
+    }
+
+    const ranged = this.weapon.ranged || this.character.alwaysRanged;
+    const fx = p.x + p.facing * 52;
+    const slash = this.add.image(fx, p.y - 48, 'slash')
+      .setFlipX(p.facing < 0).setDepth(p.y + 1)
+      .setScale(type === 'heavy' ? 1.25 : 0.95)
+      .setTint(this.weaponTint());
+    this.tweens.add({ targets: slash, alpha: 0, scaleX: slash.scaleX * 1.3,
+      duration: 170, onComplete: () => slash.destroy() });
+
+    if (ranged) { this.spawnProjectile(dmg, type, crit); return; }
+
+    const range = this.weapon.range * (type === 'heavy' ? 1.3 : 1) + 24;
+    const maxTargets = this.weapon.aoe || (type === 'heavy' ? 2 : 1);
+    const inFront = this.enemies
+      .filter((e) => e.alive)
+      .map((e) => ({ e: e, gap: (e.x - p.x) * p.facing }))
+      .filter((o) => o.gap >= -26 && o.gap <= range)
+      .sort((a, b) => a.gap - b.gap);
+    if (inFront.length === 0) return;
+    inFront.slice(0, maxTargets).forEach((o) => this.damageEnemy(o.e, dmg, type, crit));
+  }
+
+  weaponTint() {
+    return { wood_sword: 0xffffff, iron_sword: 0xdfe6f5, fire_axe: 0xff8a3c,
+             magic_staff: 0x9bd0ff, dragon_blade: 0xff5fae }[this.weapon.id] || 0xffffff;
+  }
+
+  spawnProjectile(dmg, type, crit) {
+    const p = this.player;
+    const b = this.add.image(p.x + p.facing * 40, p.y - 50, 'bolt')
+      .setTint(this.weaponTint()).setDepth(p.y + 1)
+      .setScale(type === 'heavy' ? 1.4 : 1);
+    b.vx = p.facing * 620;
+    b.dmg = dmg;
+    b.crit = crit;
+    b.fromPlayer = true;
+    b.pierce = this.weapon.pierces;
+    b.hitSet = [];
+    this.projectiles.push(b);
+  }
+
+  damageEnemy(e, dmg, type, crit) {
+    if (!e.alive) return;
+    if (e.behaviour === 'guard' && type === 'light' && !this.weapon.pierces &&
+        !e.guardBroken) {
+      dmg *= 0.18;
+      this.floatText(e.x, e.y - e.height - 6, 'GUARD', '#9bd0ff', 18);
+    } else if (e.behaviour === 'guard' && type === 'heavy') {
+      e.guardBroken = true;
+    }
+    dmg = Math.max(1, Math.round(dmg));
+    e.hp -= dmg;
+    this.floatText(e.x + Phaser.Math.Between(-10, 10), e.y - e.height * 0.7,
+      (crit ? '★' : '') + dmg, crit ? '#ffce3a' : '#ffffff', crit ? 26 : 21);
+    this.hitSpark(e.x, e.y - e.height * 0.5);
+    this.doHitStop();
+
+    e.kbVx = this.player.facing * (type === 'heavy' ? 240 : 120);
+    if (!e.isBoss) {
+      e.state = 'stagger';
+      e.stateAt = this.clock;
+      e.staggerDur = type === 'heavy' ? 320 : 200;
+    }
+    this.tweens.add({ targets: e, scaleX: 1.18, scaleY: 0.86, duration: 60, yoyo: true });
+
+    if (e.hp <= 0) this.killEnemy(e);
+    else SFX.hit();
+  }
+
+  killEnemy(e) {
+    if (!e.alive) return;
+    e.alive = false;
+    SFX.enemyDown();
+    this.killCount++;
+    this.combo++;
+    if (this.combo === 5 || this.combo === 10) SFX.combo();
+    DailyQuests.progress('kill20', 1);
+
+    let coins = this.coinValue(e);
+    if (this.combo >= 10) coins = Math.round(coins * 1.5);
+    else if (this.combo >= 5) coins = Math.round(coins * 1.25);
+    if (this.companion && this.companion.coinBonus) {
+      coins = Math.round(coins * (1 + this.companion.coinBonus));
+    }
+    this.spawnCoins(e.x, e.y - 30, coins);
+
+    e.kbVx = this.player.facing * 200;
+    for (let i = 0; i < 8; i++) this.hitSpark(e.x, e.y - e.height * 0.5);
+    this.tweens.add({
+      targets: e, alpha: 0, angle: this.player.facing * 70, y: e.y + 14,
+      duration: 320, onComplete: () => this.removeEnemy(e),
+    });
+    if (e.hpBg) { e.hpBg.destroy(); e.hpFg.destroy(); e.hpBg = null; }
+
+    if (e.isBoss) {
+      this.boss = null;
+      this.tweens.add({ targets: this.cameras.main, zoom: 1.05, duration: 200, yoyo: true });
+    }
+  }
+
+  coinValue(e) {
+    if (e.isBoss) {
+      return PlayerState.isLevelCleared(this.worldId, this.levelIndex) ? 200 : 400;
+    }
+    const k = e.cfg.key;
+    if (k === 'goblin') return Phaser.Math.Between(10, 15);
+    if (k === 'troll')  return Phaser.Math.Between(35, 50);
+    if (k === 'orc' || k === 'armored' || k === 'mage') return Phaser.Math.Between(20, 30);
+    return Phaser.Math.Between(25, 40);
+  }
+
+  removeEnemy(e) {
+    if (e.shadow) e.shadow.destroy();
+    if (e.hpBg) { e.hpBg.destroy(); e.hpFg.destroy(); }
+    e.destroy();
+  }
+
+  cullEnemies() {
+    this.enemies = this.enemies.filter((e) => e.alive);
+  }
+
+  /* ---- enemy AI --------------------------------------------------------- */
+  updateEnemy(e, dt, now) {
+    const p = this.player;
+    e.facing = p.x >= e.x ? 1 : -1;
+    e.setFlipX(e.facing > 0);
+    const dist = Math.abs(p.x - e.x);
+
+    if (Math.abs(e.kbVx) > 4) {
+      e.x += e.kbVx * dt;
+      e.kbVx *= 0.84;
+      e.x = Phaser.Math.Clamp(e.x, CONFIG.ARENA_LEFT, CONFIG.WIDTH + 120);
+    }
+
+    if (e.isBoss) this.updateBossPhase(e, now);
+    const frozen = now < e.frozenUntil;
+
+    switch (e.state) {
+      case 'walkin':
+        e.x -= e.speed * 0.85 * dt;
+        if (e.x <= CONFIG.ARENA_RIGHT - 30) { e.state = 'chase'; e.stateAt = now; }
+        break;
+      case 'chase':
+        if (!frozen) this.enemyChase(e, dt, now, dist);
+        break;
+      case 'windup':
+        if (now - e.stateAt >= e.cfg.attackWindup * (e.enraged ? 0.6 : 1)) {
+          e.state = 'strike'; e.stateAt = now; e.struck = false;
+        }
+        break;
+      case 'strike':
+        if (!e.struck) { e.struck = true; this.enemyStrike(e, dist); }
+        if (now - e.stateAt >= 160) { e.state = 'recover'; e.stateAt = now; }
+        break;
+      case 'recover':
+        if (now - e.stateAt >= (e.isBoss ? 420 : 360)) {
+          e.state = 'chase'; e.stateAt = now;
+          e.attackReadyAt = now + (e.isBoss ? 700 : 1000) * (e.enraged ? 0.5 : 1);
+        }
+        break;
+      case 'stagger':
+        if (now - e.stateAt >= e.staggerDur) { e.state = 'chase'; e.stateAt = now; }
+        break;
+    }
+
+    const atkPose = e.state === 'windup' || e.state === 'strike';
+    e.setTexture(e.baseTexture + (atkPose ? '_atk' : ''));
+    if (e.state === 'windup') e.setTint(0xffaaaa);
+    else if (e.enraged) e.setTint(0xff7a6a);
+    else if (frozen) e.setTint(0x9fd6ff);
+    else e.clearTint();
+
+    e.shadow.x = e.x;
+    e.setDepth(e.y);
+    if (e.hpBg) {
+      const top = e.y - e.height - 12;
+      e.hpBg.x = e.x; e.hpBg.y = top;
+      e.hpFg.x = e.x - 22; e.hpFg.y = top;
+      e.hpFg.width = 44 * Math.max(0, e.hp / e.maxHp);
+      const vis = e.hp < e.maxHp;
+      e.hpBg.setVisible(vis); e.hpFg.setVisible(vis);
+    }
+  }
+
+  enemyChase(e, dt, now, dist) {
+    if (e.behaviour === 'ranged') {
+      const want = 300;
+      if (dist < want - 60) e.x -= e.facing * e.speed * dt;
+      else if (dist > want + 60) e.x += e.facing * e.speed * dt;
+      else if (now >= e.attackReadyAt) { e.state = 'windup'; e.stateAt = now; }
       return;
     }
-    this.run.lives--;
-    this.run.combo = 0;
-    this.invulnUntil = this.time.now + CONFIG.INVULN_MS;
-    SFX.hit();
-    this.hitBurst.explode(18, this.player.x, this.player.y - 30);
-    this.cameras.main.shake(260, 0.015);
-    this.cameras.main.flash(150, 150, 30, 40);
-    const hud = this.scene.get('Hud');
-    if (hud && hud.onDamage) hud.onDamage();
-    if (this.run.lives <= 0) this.gameOver();
-  }
-
-  collectCoin(c) {
-    const now = this.time.now;
-    this.run.combo = (now - this.lastCoinTime < 1500) ? this.run.combo + 1 : 1;
-    this.lastCoinTime = now;
-    this.bestCombo = Math.max(this.bestCombo, this.run.combo);
-    const comboBonus = Math.floor(this.run.combo / 5);
-    const base = c.isGem ? CONFIG.GEM_VALUE : CONFIG.COIN_VALUE;
-    const x2 = now < this.run.x2Until ? 2 : 1;
-    const gain = (base + comboBonus + this.stats.coinBonus) * x2;
-    this.run.coins += gain;
-    Save.addCoins(gain);   /* bank coins right away so the shop can use them */
-    if (c.isGem) { SFX.gem(); this.gemBurst.explode(16, c.x, c.y); }
-    else { SFX.coin(); this.coinBurst.explode(9, c.x, c.y); }
-    this.popText(c.x, c.y - 12, '+' + gain, c.isGem ? '#7ff0e6' : '#ffe27a',
-      c.isGem ? 24 : 19);
-    this.tweens.killTweensOf(c);
-    c.destroy();
-  }
-
-  activatePowerup(type, x, y) {
-    SFX.power();
-    this.coinBurst.explode(14, x, y);
-    const now = this.time.now;
-    let label = '';
-    if (type === 'shield')      { this.run.shield = true; label = 'Shield up!'; }
-    else if (type === 'magnet') { this.run.magnetUntil = now + 8000; label = 'Magnet!'; }
-    else if (type === 'slow')   { this.run.slowUntil = now + 6000; label = 'Slow-mo!'; }
-    else if (type === 'x2')     { this.run.x2Until = now + 10000; label = 'Double coins!'; }
-    else { /* heart */
-      this.run.lives = Math.min(this.run.maxLives, this.run.lives + 1);
-      label = 'Extra life!';
+    if (dist <= e.range) {
+      if (now >= e.attackReadyAt) { e.state = 'windup'; e.stateAt = now; }
+    } else {
+      const spd = e.speed * (e.enraged ? 1.8 : 1);
+      e.x += e.facing * spd * dt;
+      this.enemies.forEach((o) => {
+        if (o !== e && o.alive && Math.abs(o.x - e.x) < 42) {
+          e.x += (e.x < o.x ? -1 : 1) * 30 * dt;
+        }
+      });
     }
-    this.popText(this.player.x, this.player.y - 86, label, '#ffffff', 22);
   }
 
-  gameOver() {
-    if (this.run.over) return;
-    this.run.over = true;
-    this.sliding = false;
-    this.player.anims.stop();
-    this.player.setTexture('hero_hurt');
-    this.player.body.setVelocity(0, -540);
-    this.hitBurst.explode(26, this.player.x, this.player.y - 30);
-    this.cameras.main.shake(340, 0.022);
+  enemyStrike(e, dist) {
+    const p = this.player;
+    if (e.behaviour === 'ranged') { this.castEnemyBolt(e); return; }
+    if (dist > e.range + 28) return;
+    if ((e.behaviour === 'sweep' || e.isBoss) && !p.onGround &&
+        p.y < CONFIG.GROUND_Y - 46) {
+      this.floatText(p.x, p.y - 90, 'dodged!', '#9bff9b', 18);
+      return;
+    }
+    let dmg = e.dmg;
+    if (e.enraged) dmg = Math.round(dmg * 1.4);
+    this.damagePlayer(dmg, e);
+  }
+
+  castEnemyBolt(e) {
+    const p = this.player;
+    const b = this.add.image(e.x + e.facing * 20, e.y - e.height * 0.55, 'bolt')
+      .setTint(0xc77aff).setDepth(e.y + 1).setScale(1.2);
+    b.vx = (p.x >= e.x ? 1 : -1) * 360;
+    b.dmg = e.dmg;
+    b.fromPlayer = false;
+    this.projectiles.push(b);
+  }
+
+  /* ---- boss phases ------------------------------------------------------ */
+  updateBossPhase(e, now) {
+    const frac = e.hp / e.maxHp;
+    if (e.cfg.key === 'goblin_king' && frac <= 0.5 && !e.spawnedAdds) {
+      e.spawnedAdds = true;
+      this.flashBanner('The King calls for help!');
+      this.spawnEnemy('goblin', e.x - 90);
+      this.spawnEnemy('goblin', e.x + 90);
+    }
+    if (e.cfg.key === 'orc_warchief' && frac <= 0.4 && !e.enraged) {
+      e.enraged = true;
+      this.flashBanner('The Warchief ENRAGES!');
+    }
+    if (e.cfg.key === 'dragon_lord') {
+      const phase = frac > 0.66 ? 1 : (frac > 0.33 ? 2 : 3);
+      if (phase !== e.phase) {
+        e.phase = phase;
+        if (phase >= 2) e.enraged = true;
+        this.flashBanner('Dragon Lord — Phase ' + phase);
+      }
+    }
+  }
+
+  /* ---- player damage ---------------------------------------------------- */
+  damagePlayer(rawDmg, source) {
+    const p = this.player;
+    const now = this.clock;
+    if (now < p.invulnUntil || this.finished) return;
+
+    if (this.shieldCharges > 0) {
+      this.shieldCharges--;
+      this.floatText(p.x, p.y - 96, 'BLOCKED', '#9bd0ff', 20);
+      SFX.shieldPop();
+      p.invulnUntil = now + 500;
+      return;
+    }
+    if (this.armor.deflect && Math.random() < this.armor.deflect) {
+      this.floatText(p.x, p.y - 96, 'DEFLECT', '#9bd0ff', 18);
+      SFX.shieldPop();
+      p.invulnUntil = now + 400;
+      return;
+    }
+
+    const dmg = Math.max(3, Math.round(rawDmg - this.armor.defense * 0.6));
+    p.hp -= dmg;
+    this.floatText(p.x, p.y - 100, '-' + dmg, '#ff6a7e', 24);
+    this.hitSpark(p.x, p.y - 50);
+    SFX.hit();
+    this.cameras.main.shake(120, 0.012);
+    this.doHitStop();
+
+    p.kbVx = (source && source.x > p.x ? -1 : 1) * 260;
+    p.hurtUntil = now + 360;
+    p.invulnUntil = now + 950;
+    if (source && source.cfg && source.cfg.key === 'frost_troll') {
+      p.frozenUntil = now + 1100;
+      this.floatText(p.x, p.y - 70, 'FROZEN!', '#9fe6ff', 20);
+    }
+
+    this.combo = 0;
+    this.tookDamageLevel = true;
+    this.waveDamageless = false;
+
+    if (p.hp <= 0) this.handleDeath();
+  }
+
+  handleDeath() {
+    const p = this.player;
+    if (!this.usedRevive && PlayerState.consumableQty('revive') > 0) {
+      PlayerState.useConsumable('revive');
+      this.usedRevive = true;
+      p.hp = Math.round(p.maxHp * 0.6);
+      p.invulnUntil = this.clock + 1800;
+      p.hurtUntil = 0;
+      this.flashBanner('REVIVED!');
+      SFX.power();
+      return;
+    }
+    this.finished = true;
     SFX.gameOver();
-
-    const dist = Math.floor(this.run.distance);
-    const newBest = dist > Save.data.highScore;   /* check before recordRun updates it */
-    Save.recordRun(dist, this.run.biomeIndex);
-    this.registry.set('lastRun', {
-      distance: dist, coins: this.run.coins,
-      biome: this.run.biomeName, bestCombo: this.bestCombo,
-      newBest: newBest, biomeIndex: this.run.biomeIndex,
-    });
-
-    this.time.delayedCall(1150, () => {
-      this.cameras.main.fadeOut(280, 0, 0, 0);
-      this.cameras.main.once('camerafadeoutcomplete', () => {
-        this.scene.stop('Hud');
-        this.scene.start('GameOver');
+    p.anims.stop();
+    p.setTexture('hero_hurt');
+    this.cameras.main.fadeOut(600, 0, 0, 0);
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.scene.stop('Hud');
+      this.scene.start('GameOver', {
+        win: false, worldId: this.worldId, levelIndex: this.levelIndex,
+        coins: this.runCoins, kills: this.killCount,
       });
     });
   }
 
-  popText(x, y, str, color, size) {
+  /* ---- projectiles & coins --------------------------------------------- */
+  updateProjectiles(dt) {
+    const p = this.player;
+    this.projectiles = this.projectiles.filter((b) => {
+      b.x += b.vx * dt;
+      b.angle += 12;
+      if (b.x < -60 || b.x > CONFIG.WIDTH + 60) { b.destroy(); return false; }
+
+      if (b.fromPlayer) {
+        for (let i = 0; i < this.enemies.length; i++) {
+          const e = this.enemies[i];
+          if (e.alive && b.hitSet.indexOf(e) === -1 &&
+              Math.abs(e.x - b.x) < 40 &&
+              Math.abs((e.y - e.height * 0.5) - b.y) < e.height * 0.6) {
+            b.hitSet.push(e);
+            this.damageEnemy(e, b.dmg, 'light', b.crit);
+            if (!b.pierce) { b.destroy(); return false; }
+          }
+        }
+      } else if (Math.abs(p.x - b.x) < 36 &&
+                 Math.abs((p.y - 50) - b.y) < 60 && this.clock >= p.invulnUntil) {
+        this.damagePlayer(b.dmg, { x: b.x });
+        b.destroy(); return false;
+      }
+      return true;
+    });
+  }
+
+  spawnCoins(x, y, total) {
+    const n = Phaser.Math.Clamp(Math.round(total / 8), 2, 7);
+    const per = total / n;
+    for (let i = 0; i < n; i++) {
+      const c = this.add.image(x, y, 'coin').setDepth(400).setScale(0.9);
+      c.value = per;
+      c.vx = Phaser.Math.Between(-160, 160);
+      c.vy = Phaser.Math.Between(-320, -180);
+      c.grounded = false;
+      c.bornAt = this.clock;
+      this.coinPickups.push(c);
+    }
+  }
+
+  updateCoins(dt, now) {
+    const p = this.player;
+    const magnet = now < this.magnetUntil;
+    this.coinPickups = this.coinPickups.filter((c) => {
+      if (!c.grounded) {
+        c.vy += 1400 * dt;
+        c.x += c.vx * dt;
+        c.y += c.vy * dt;
+        if (c.y >= CONFIG.GROUND_Y - 14) { c.y = CONFIG.GROUND_Y - 14; c.grounded = true; }
+      }
+      const dist = Phaser.Math.Distance.Between(c.x, c.y, p.x, p.y - 40);
+      if ((c.grounded && dist < 64) || magnet || now - c.bornAt > 9000) {
+        this.collectCoin(c);
+        return false;
+      }
+      return true;
+    });
+  }
+
+  collectCoin(c) {
+    const gain = Math.max(1, Math.round(c.value));
+    this.runCoins += gain;
+    PlayerState.addCoins(gain);
+    SFX.coin();
+    this.tweens.add({ targets: c, x: CONFIG.WIDTH - 80, y: 36,
+      scale: 0.4, duration: 360, ease: 'Cubic.in',
+      onComplete: () => c.destroy() });
+  }
+
+  /* ---- consumables ------------------------------------------------------ */
+  useConsumable(slot) {
+    const id = this.consumableSlots[slot];
+    if (!id || PlayerState.consumableQty(id) <= 0) return;
+    PlayerState.useConsumable(id);
+    const item = findItem(CONSUMABLES, id);
+    SFX.power();
+    if (item.effect === 'blockHit') {
+      this.shieldCharges++;
+      this.floatText(this.player.x, this.player.y - 100, '+Shield', '#9bd0ff', 20);
+    } else if (item.effect === 'bomb') {
+      this.flashBanner('BOMB!');
+      this.cameras.main.shake(220, 0.02);
+      this.enemies.slice().forEach((e) => {
+        if (!e.alive) return;
+        this.damageEnemy(e, e.isBoss ? e.maxHp * 0.18 : 9999, 'heavy', false);
+      });
+    } else if (item.effect === 'speed') {
+      this.speedBoostUntil = this.clock + item.duration * 1000;
+      this.floatText(this.player.x, this.player.y - 100, 'Speed!', '#9bff9b', 20);
+    } else if (item.effect === 'magnet') {
+      this.magnetUntil = this.clock + item.duration * 1000;
+      this.floatText(this.player.x, this.player.y - 100, 'Magnet!', '#ffce3a', 20);
+    }
+  }
+
+  /* ---- wave / level end ------------------------------------------------- */
+  onWaveCleared() {
+    this.waveClearing = true;
+    if (this.waveDamageless && this.waveIndex >= 0 && !this.waves[this.waveIndex].boss) {
+      this.runCoins += 100;
+      PlayerState.addCoins(100);
+      this.floatText(CONFIG.WIDTH / 2, 210, 'PERFECT WAVE  +100', '#ffce3a', 30);
+      DailyQuests.progress('perfectWave', 1);
+      SFX.levelUp();
+    }
+    this.time.delayedCall(900, () => { this.waveClearing = false; this.nextWave(); });
+  }
+
+  levelComplete() {
+    if (this.finished) return;
+    this.finished = true;
+    SFX.levelUp();
+
+    let bonus = this.isBossLevel
+      ? (PlayerState.isLevelCleared(this.worldId, this.levelIndex) ? 200 : 400)
+      : 80 + this.waves.length * 22 + this.levelIndex * 12;
+    if (this.companion && this.companion.coinBonus) {
+      bonus = Math.round(bonus * (1 + this.companion.coinBonus));
+    }
+    const perfect = !this.tookDamageLevel;
+    if (perfect) bonus = Math.round(bonus * 1.5);
+
+    PlayerState.addCoins(bonus);
+    PlayerState.clearLevel(this.worldId, this.levelIndex, this.runCoins + bonus);
+    if (perfect) DailyQuests.progress('clearLevel', 1);
+
+    this.player.anims.stop();
+    this.player.setTexture('hero_idle');
+    this.flashBanner(this.isBossLevel ? 'BOSS DEFEATED!' : 'LEVEL CLEAR!');
+
+    this.time.delayedCall(1500, () => {
+      this.cameras.main.fadeOut(500, 0, 0, 0);
+      this.cameras.main.once('camerafadeoutcomplete', () => {
+        this.scene.stop('Hud');
+        this.scene.start('GameOver', {
+          win: true, worldId: this.worldId, levelIndex: this.levelIndex,
+          coins: this.runCoins, bonus: bonus, perfect: perfect,
+          kills: this.killCount, boss: this.isBossLevel,
+        });
+      });
+    });
+  }
+
+  /* ---- effects ---------------------------------------------------------- */
+  doHitStop() { this.freezeUntil = this.clock + CONFIG.HIT_STOP_MS; }
+
+  hitSpark(x, y) {
+    const s = this.add.image(x, y, Math.random() < 0.5 ? 'spark' : 'bit')
+      .setDepth(500).setScale(Phaser.Math.FloatBetween(0.6, 1.4))
+      .setTint(0xffe9a8);
+    this.tweens.add({
+      targets: s, x: x + Phaser.Math.Between(-46, 46), y: y + Phaser.Math.Between(-46, 30),
+      alpha: 0, duration: 320, onComplete: () => s.destroy(),
+    });
+  }
+
+  floatText(x, y, str, color, size) {
     const t = this.add.text(x, y, str, {
-      fontFamily: UI.FONT, fontSize: (size || 20) + 'px', color: color || '#ffffff',
-      fontStyle: 'bold', stroke: '#241f44', strokeThickness: 4,
-    }).setOrigin(0.5).setDepth(20);
-    this.tweens.add({ targets: t, y: y - 48, alpha: 0, duration: 760,
+      fontFamily: UI.FONT, fontSize: (size || 22) + 'px', color: color,
+      fontStyle: 'bold', stroke: '#1a1330', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(600);
+    this.tweens.add({ targets: t, y: y - 52, alpha: 0, duration: 760,
       ease: 'Cubic.out', onComplete: () => t.destroy() });
   }
 
-  /* the game stays paused; the Shop (drawn by ShopScene) covers everything */
-  openShopFromPause() {
-    this.scene.launch('Shop', { from: 'Game' });
-    this.scene.bringToTop('Shop');
+  flashBanner(str) {
+    const t = this.add.text(CONFIG.WIDTH / 2, 168, str, {
+      fontFamily: UI.FONT, fontSize: '44px', color: '#ffd23f',
+      fontStyle: 'bold', stroke: '#3a2150', strokeThickness: 9,
+    }).setOrigin(0.5).setDepth(700).setScale(0.5).setAlpha(0);
+    this.tweens.add({ targets: t, scale: 1, alpha: 1, duration: 220, ease: 'Back.out' });
+    this.tweens.add({ targets: t, alpha: 0, duration: 320, delay: 1100,
+      onComplete: () => t.destroy() });
+  }
+
+  /* ---- pause ------------------------------------------------------------ */
+  togglePause() {
+    if (this.finished) return;
+    if (this.paused) { this.closePause(); return; }
+    this.paused = true;
+    const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
+    const c = this.add.container(0, 0).setDepth(2000);
+    c.add(this.add.rectangle(0, 0, W, H, 0x000000, 0.66).setOrigin(0).setInteractive());
+    c.add(UI.panel(this, W / 2, H / 2, 440, 320, UI.COLORS.panel,
+      { stroke: UI.COLORS.accent, strokeWidth: 4 }));
+    c.add(UI.text(this, W / 2, H / 2 - 110, 'PAUSED', 40, '#ffd23f', { bold: true }));
+    c.add(UI.button(this, W / 2, H / 2 - 30, {
+      label: 'Resume', width: 260, height: 56, fontSize: 23,
+      color: UI.COLORS.good, onClick: () => this.closePause(),
+    }));
+    c.add(UI.button(this, W / 2, H / 2 + 42, {
+      label: 'Restart Level', width: 260, height: 52, fontSize: 20,
+      color: UI.COLORS.accent, onClick: () => {
+        this.scene.stop('Hud');
+        this.scene.restart({ worldId: this.worldId, levelIndex: this.levelIndex });
+      },
+    }));
+    c.add(UI.button(this, W / 2, H / 2 + 108, {
+      label: 'Quit to Map', width: 260, height: 52, fontSize: 20,
+      color: UI.COLORS.bad, onClick: () => {
+        this.scene.stop('Hud');
+        this.scene.start('WorldMap');
+      },
+    }));
+    this.pauseOverlay = c;
+  }
+
+  closePause() {
+    if (this.pauseOverlay) { this.pauseOverlay.destroy(); this.pauseOverlay = null; }
+    this.paused = false;
+    SFX.click();
   }
 }

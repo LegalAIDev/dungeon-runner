@@ -1,5 +1,5 @@
 /* ============================================================================
-   MenuScene — the title screen: play, how-to-play, shop and sound settings.
+   MenuScene — the title screen.
    ========================================================================== */
 
 class MenuScene extends Phaser.Scene {
@@ -12,87 +12,84 @@ class MenuScene extends Phaser.Scene {
     this.bg = UI.scenicBackground(this, BIOMES[0]);
     this.cameras.main.fadeIn(350, 0, 0, 0);
 
-    /* browsers only allow sound after the player interacts — start it then */
     this.input.once('pointerdown', () => { SFX.init(); SFX.startMusic(); });
 
-    /* a runner showing off on the right, with bobbing coins */
-    this.add.sprite(806, GY + 3, 'hero_run0').setOrigin(0.5, 1).setScale(1.15).play('run');
-    for (let i = 0; i < 3; i++) {
-      const cy = GY - 86 - i * 33;
-      const coin = this.add.image(806, cy, 'coin');
-      this.tweens.add({ targets: coin, y: cy - 11, duration: 680 + i * 130,
-        yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-    }
+    /* hero squaring up against a goblin */
+    this.add.image(770, GY, 'shadowblob').setOrigin(0.5).setDepth(1);
+    this.hero = this.add.sprite(770, GY + 6, 'hero_idle').setOrigin(0.5, 1).setScale(1.25);
+    this.hero.play('hero-walk');
+    const foe = this.add.sprite(866, GY + 4, 'foe_goblin').setOrigin(0.5, 1)
+      .setScale(1.2).setFlipX(true);
+    this.tweens.add({ targets: foe, y: foe.y - 8, duration: 520,
+      yoyo: true, repeat: -1, ease: 'Sine.inOut' });
 
     /* title */
-    const title = this.add.text(W / 2, 120, 'MATH RUNNER', {
-      fontFamily: UI.FONT, fontSize: '76px', fontStyle: 'bold',
+    const title = this.add.text(W / 2, 116, 'MATH RUNNER', {
+      fontFamily: UI.FONT, fontSize: '74px', fontStyle: 'bold',
       color: '#ffd23f', stroke: '#3a2150', strokeThickness: 12,
     }).setOrigin(0.5);
     title.setShadow(0, 8, 'rgba(0,0,0,0.4)', 10, false, true);
-    this.tweens.add({ targets: title, scaleX: 1.045, scaleY: 1.045,
+    this.tweens.add({ targets: title, scaleX: 1.04, scaleY: 1.04,
       duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
 
-    UI.text(this, W / 2, 180,
-      'Dash through four worlds  •  Solve math to power up', 21, '#ffffff',
-      { shadow: true });
+    UI.text(this, W / 2, 174,
+      'Fight through four worlds  •  Train in the Math Lab to power up',
+      20, '#ffffff', { shadow: true });
 
-    /* coins + best score panels */
-    UI.panel(this, 130, 44, 210, 54, UI.COLORS.panel, { alpha: 0.9, radius: 14 });
-    this.add.image(56, 44, 'coin').setScale(0.95);
-    UI.text(this, 80, 44, '', 24, '#ffd23f', { originX: 0, bold: true })
-      .setText(String(Save.data.coins));
+    /* currency panels */
+    UI.panel(this, 132, 44, 214, 54, UI.COLORS.panel, { alpha: 0.92, radius: 14 });
+    this.add.image(58, 44, 'coin').setScale(0.95);
+    UI.text(this, 82, 44, String(PlayerState.data.coins), 24, '#ffd23f',
+      { originX: 0, bold: true });
 
-    UI.panel(this, W - 150, 44, 250, 54, UI.COLORS.panel, { alpha: 0.9, radius: 14 });
-    UI.text(this, W - 150, 44, 'Best  ' + Save.data.highScore + ' m', 22,
-      '#cdb8ff', { bold: true });
+    UI.panel(this, W - 132, 44, 214, 54, UI.COLORS.panel, { alpha: 0.92, radius: 14 });
+    this.add.image(W - 206, 44, 'starcoin').setScale(0.92);
+    UI.text(this, W - 182, 44, String(PlayerState.data.mathStars), 24, '#ffcf3f',
+      { originX: 0, bold: true });
 
-    /* main buttons */
-    const play = UI.button(this, W / 2, 292, {
-      label: '▶  PLAY', width: 286, height: 80, fontSize: 35,
+    /* buttons */
+    const play = UI.button(this, W / 2, 280, {
+      label: '▶  PLAY', width: 290, height: 80, fontSize: 35,
       color: UI.COLORS.good, onClick: () => this.startGame(),
     });
     this.tweens.add({ targets: play, scaleX: 1.05, scaleY: 1.05,
       duration: 900, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
 
-    UI.button(this, W / 2 - 129, 376, {
-      label: 'How to Play', width: 226, height: 58, fontSize: 22,
+    UI.button(this, W / 2 - 129, 364, {
+      label: 'How to Play', width: 226, height: 56, fontSize: 21,
       color: UI.COLORS.accent, onClick: () => this.showHelp(),
     });
-    UI.button(this, W / 2 + 129, 376, {
-      label: 'Shop', width: 226, height: 58, fontSize: 22,
+    UI.button(this, W / 2 + 129, 364, {
+      label: 'Shop', width: 226, height: 56, fontSize: 21,
       color: 0x8a63d6, onClick: () => { SFX.click(); this.scene.start('Shop', { from: 'Menu' }); },
     });
 
-    /* sound + music toggles */
-    this.soundBtn = UI.button(this, W / 2 - 108, 458, {
-      label: this.soundLabel(), width: 200, height: 48, fontSize: 18,
+    this.soundBtn = UI.button(this, W / 2 - 108, 442, {
+      label: this.soundLabel(), width: 200, height: 46, fontSize: 17,
       color: UI.COLORS.panelLight, onClick: () => this.toggleSound(),
     });
-    this.musicBtn = UI.button(this, W / 2 + 108, 458, {
-      label: this.musicLabel(), width: 200, height: 48, fontSize: 18,
+    this.musicBtn = UI.button(this, W / 2 + 108, 442, {
+      label: this.musicLabel(), width: 200, height: 46, fontSize: 17,
       color: UI.COLORS.panelLight, onClick: () => this.toggleMusic(),
     });
 
-    /* keyboard shortcut to start */
     this.input.keyboard.on('keydown-ENTER', () => { if (!this.helpOpen) this.startGame(); });
-    this.input.keyboard.on('keydown-SPACE', () => { if (!this.helpOpen) this.startGame(); });
     this.events.once('shutdown', () => this.input.keyboard.removeAllListeners());
   }
 
-  soundLabel() { return 'Sound: ' + (Save.data.soundOn ? 'On' : 'Off'); }
-  musicLabel() { return 'Music: ' + (Save.data.musicOn ? 'On' : 'Off'); }
+  soundLabel() { return 'Sound: ' + (PlayerState.data.settings.soundOn ? 'On' : 'Off'); }
+  musicLabel() { return 'Music: ' + (PlayerState.data.settings.musicOn ? 'On' : 'Off'); }
 
   toggleSound() {
-    Save.data.soundOn = !Save.data.soundOn;
-    Save.persist();
+    PlayerState.data.settings.soundOn = !PlayerState.data.settings.soundOn;
+    PlayerState.save();
     this.soundBtn.setButtonLabel(this.soundLabel());
     SFX.refreshMusic();
   }
 
   toggleMusic() {
-    Save.data.musicOn = !Save.data.musicOn;
-    Save.persist();
+    PlayerState.data.settings.musicOn = !PlayerState.data.settings.musicOn;
+    PlayerState.save();
     this.musicBtn.setButtonLabel(this.musicLabel());
     SFX.init();
     SFX.startMusic();
@@ -104,11 +101,11 @@ class MenuScene extends Phaser.Scene {
     SFX.init();
     SFX.startMusic();
     SFX.click();
+    const next = PlayerState.data.charPicked ? 'WorldMap' : 'CharSelect';
     this.cameras.main.fadeOut(260, 0, 0, 0);
-    this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('Game'));
+    this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start(next));
   }
 
-  /* ---- the How to Play overlay (everything lives in one container) ---- */
   showHelp() {
     if (this.helpOpen) return;
     this.helpOpen = true;
@@ -116,26 +113,27 @@ class MenuScene extends Phaser.Scene {
     const c = this.add.container(0, 0).setDepth(1000);
 
     c.add(this.add.rectangle(0, 0, W, H, 0x000000, 0.55).setOrigin(0).setInteractive());
-    c.add(UI.panel(this, W / 2, H / 2, 640, 388, UI.COLORS.panel,
+    c.add(UI.panel(this, W / 2, H / 2, 660, 408, UI.COLORS.panel,
       { stroke: UI.COLORS.accent, strokeWidth: 4 }));
-    c.add(UI.text(this, W / 2, H / 2 - 148, 'How to Play', 36, '#ffd23f', { bold: true }));
+    c.add(UI.text(this, W / 2, H / 2 - 158, 'How to Play', 34, '#ffd23f', { bold: true }));
 
     const lines = [
-      'The runner moves on its own — react to what is ahead.',
-      'Tap, Space or the Up arrow to JUMP over spikes and lava.',
-      'Hold, or the Down arrow, to SLIDE under saws and drones.',
-      'Collect coins, then open the Shop to buy upgrades.',
-      'Every upgrade asks you to solve a math problem first.',
-      'Travel as far as you can across four different worlds!',
+      'Move with ← →   ·   Jump with ↑ or Space',
+      'Z = light attack    ·    X = heavy attack',
+      '↓ while moving = dodge roll (brief invincibility)',
+      'Clear every wave of enemies to win the level.',
+      'Enemies get tougher — coins buy potions, not power.',
+      'Visit the Shop’s Math Lab: solve math, earn ⭐ stars.',
+      'Spend stars on stronger weapons, armour and heroes!',
     ];
     lines.forEach((ln, i) => {
-      const y = H / 2 - 92 + i * 40;
-      c.add(this.add.circle(W / 2 - 272, y, 5, UI.COLORS.gold, 1));
-      c.add(this.add.text(W / 2 - 254, y, ln,
+      const y = H / 2 - 104 + i * 38;
+      c.add(this.add.circle(W / 2 - 286, y, 5, UI.COLORS.gold, 1));
+      c.add(this.add.text(W / 2 - 268, y, ln,
         { fontFamily: UI.FONT, fontSize: '19px', color: '#ffffff' }).setOrigin(0, 0.5));
     });
 
-    c.add(UI.button(this, W / 2, H / 2 + 154, {
+    c.add(UI.button(this, W / 2, H / 2 + 158, {
       label: 'Got it!', width: 200, height: 54, fontSize: 22,
       color: UI.COLORS.good, onClick: () => this.hideHelp(),
     }));
@@ -155,9 +153,8 @@ class MenuScene extends Phaser.Scene {
 
   update(time, delta) {
     const d = delta / 1000;
-    this.bg.hillFar.tilePositionX += 7 * d;
-    this.bg.hillNear.tilePositionX += 16 * d;
-    this.bg.ground.tilePositionX += 42 * d;
+    this.bg.hillFar.tilePositionX += 5 * d;
+    this.bg.hillNear.tilePositionX += 11 * d;
     this.bg.clouds.forEach((cl) => {
       cl.x -= 9 * d;
       if (cl.x < -100) cl.x = CONFIG.WIDTH + 100;

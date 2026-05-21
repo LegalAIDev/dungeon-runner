@@ -1,7 +1,6 @@
 /* ============================================================================
-   BootScene — runs once at startup. It draws every picture the game needs
-   (the runner, coins, obstacles, backgrounds…) straight into textures with
-   code, then hands over to the menu. Nothing is loaded from an image file.
+   BootScene — runs once at startup. Draws every sprite the game needs straight
+   into textures with code (no image files), then opens the menu.
    ========================================================================== */
 
 class BootScene extends Phaser.Scene {
@@ -10,35 +9,43 @@ class BootScene extends Phaser.Scene {
   create() {
     const g = this.make.graphics({ add: false });
 
-    /* --- the runner: 4 running frames plus jump / fall / slide / hurt --- */
-    for (let i = 0; i < 4; i++) {
-      this.drawHero(g, 'run', i); g.generateTexture('hero_run' + i, 72, 80); g.clear();
-    }
-    this.drawHero(g, 'jump', 0); g.generateTexture('hero_jump', 72, 80); g.clear();
-    this.drawHero(g, 'fall', 0); g.generateTexture('hero_fall', 72, 80); g.clear();
-    this.drawHero(g, 'hurt', 0); g.generateTexture('hero_hurt', 72, 80); g.clear();
-    this.drawHeroSlide(g);       g.generateTexture('hero_slide', 72, 80); g.clear();
-
-    /* --- collectibles --- */
-    this.drawCoin(g); g.generateTexture('coin', 30, 30); g.clear();
-    this.drawGem(g);  g.generateTexture('gem', 34, 32);  g.clear();
-
-    /* --- obstacles --- */
-    this.drawSpike(g); g.generateTexture('spike', 58, 56); g.clear();
-    this.drawLava(g);  g.generateTexture('lava', 132, 42); g.clear();
-    this.drawSaw(g);   g.generateTexture('saw', 64, 64);   g.clear();
-    this.drawDrone(g); g.generateTexture('drone', 64, 56); g.clear();
-
-    /* --- power-ups --- */
-    ['shield', 'magnet', 'slow', 'x2', 'heart'].forEach((t) => {
-      this.drawPowerUp(g, t); g.generateTexture('pu_' + t, 48, 48); g.clear();
+    /* ---- the player hero, in every combat pose ---------------------------- */
+    ['idle', 'walk0', 'walk1', 'jump', 'attack', 'hurt', 'dodge'].forEach((p) => {
+      this.drawHero(g, p);
+      g.generateTexture('hero_' + p, 104, 112);
+      g.clear();
     });
 
-    /* --- HUD hearts --- */
-    this.drawHeart(g, true);  g.generateTexture('heart_full', 34, 32);  g.clear();
-    this.drawHeart(g, false); g.generateTexture('heart_empty', 34, 32); g.clear();
+    /* ---- standard enemies: an idle and an attack frame each -------------- */
+    const foes = EnemyFactory.list();
+    Object.keys(foes).forEach((key) => {
+      const e = foes[key];
+      this.drawMonster(g, e.w, e.h, this.foeStyle(key, 'idle'));
+      g.generateTexture('foe_' + key, e.w, e.h); g.clear();
+      this.drawMonster(g, e.w, e.h, this.foeStyle(key, 'atk'));
+      g.generateTexture('foe_' + key + '_atk', e.w, e.h); g.clear();
+    });
 
-    /* --- particles & decorations --- */
+    /* ---- bosses --------------------------------------------------------- */
+    const bosses = EnemyFactory.bossList();
+    Object.keys(bosses).forEach((key) => {
+      const b = bosses[key];
+      this.drawMonster(g, b.w, b.h, this.bossStyle(key, 'idle'));
+      g.generateTexture('boss_' + key, b.w, b.h); g.clear();
+      this.drawMonster(g, b.w, b.h, this.bossStyle(key, 'atk'));
+      g.generateTexture('boss_' + key + '_atk', b.w, b.h); g.clear();
+    });
+
+    /* ---- combat effects & pickups --------------------------------------- */
+    this.drawSlash(g);   g.generateTexture('slash', 110, 110); g.clear();
+    this.drawBolt(g);    g.generateTexture('bolt', 32, 32);    g.clear();
+    this.drawShadow(g);  g.generateTexture('shadowblob', 92, 26); g.clear();
+    this.drawCoin(g);    g.generateTexture('coin', 30, 30);    g.clear();
+    this.drawStarIcon(g);g.generateTexture('starcoin', 34, 34); g.clear();
+    this.drawHeart(g, true);  g.generateTexture('heart_full', 38, 36);  g.clear();
+    this.drawHeart(g, false); g.generateTexture('heart_empty', 38, 36); g.clear();
+
+    /* ---- particles & decoration ----------------------------------------- */
     this.drawSpark(g); g.generateTexture('spark', 16, 16); g.clear();
     g.fillStyle(0xffffff, 1); g.fillRoundedRect(0, 0, 9, 9, 2);
     g.generateTexture('bit', 9, 9); g.clear();
@@ -46,7 +53,7 @@ class BootScene extends Phaser.Scene {
     this.drawStar(g);  g.generateTexture('star', 12, 12);  g.clear();
     this.drawGlow(g);  g.generateTexture('glow', 128, 128); g.clear();
 
-    /* --- one set of scenery textures per biome --- */
+    /* ---- scenery textures, one set per world ---------------------------- */
     BIOMES.forEach((b) => {
       this.drawHills(g, 512, 220, b.hillFar, 3, 26);
       g.generateTexture('hillfar_' + b.key, 512, 220); g.clear();
@@ -58,19 +65,20 @@ class BootScene extends Phaser.Scene {
 
     g.destroy();
 
-    /* the looping run animation */
+    /* hero walk-cycle animation */
     this.anims.create({
-      key: 'run',
-      frames: [0, 1, 2, 3].map((i) => ({ key: 'hero_run' + i })),
-      frameRate: 14,
-      repeat: -1,
+      key: 'hero-walk',
+      frames: [{ key: 'hero_walk0' }, { key: 'hero_idle' },
+               { key: 'hero_walk1' }, { key: 'hero_idle' }],
+      frameRate: 9, repeat: -1,
     });
 
     this.scene.start('Menu');
   }
 
-  /* =====================  the runner  ==================================== */
-  /* a rotated capsule used for arms and legs (angle 0 points straight down) */
+  /* ======================================================================
+     THE HERO — a limbed humanoid holding a sword
+     ====================================================================== */
   limb(g, ax, ay, len, thick, angle, color) {
     g.save();
     g.translateCanvas(ax, ay);
@@ -80,112 +88,345 @@ class BootScene extends Phaser.Scene {
     g.restore();
   }
 
-  drawHero(g, pose, phase) {
-    const CX = 36;
+  drawHero(g, pose) {
+    const CX = 52, GY = 110;
     const BLUE = 0x5b6ef5, BLUEMID = 0x4a5ae0, BLUEDARK = 0x3a48c0;
-    const SHOE = 0xffce3a, SHOEDK = 0xe6a81e;
+    const SHOE = 0xffce3a, SHOEDK = 0xe6a81e, SKIN = 0xffd6b0;
 
-    let bob = 0, lf = 0, lb = 0, af = 0, ab = 0, mouth = 'smile';
-    if (pose === 'run') {
-      lf = [0.62, 0.18, -0.55, -0.05][phase];
-      lb = [-0.5, -0.05, 0.6, 0.2][phase];
-      af = -lf * 0.85; ab = -lb * 0.85;
-      bob = [0, -3, 0, -3][phase];
-    } else if (pose === 'jump') {
-      lf = 0.5; lb = 0.95; af = -1.5; ab = -1.15; bob = -2; mouth = 'open';
-    } else if (pose === 'fall') {
-      lf = -0.25; lb = 0.3; af = -2.1; ab = -1.8; mouth = 'open';
-    } else if (pose === 'hurt') {
-      lf = -0.55; lb = 0.5; af = -2.4; ab = 1.1; bob = -1; mouth = 'hurt';
-    }
+    let lf = 0.16, lb = -0.16, armBack = 0.4, armFront = 0.2;
+    let lean = 0, bob = 0, swordAngle = 1.35, mouth = 'set';
 
-    const hipY = 62 + bob, shoulderY = 36 + bob, bodyTop = 22 + bob;
-    const bodyW = 34, bodyH = 40;
+    if (pose === 'idle')  { lf = 0.14; lb = -0.14; }
+    else if (pose === 'walk0') { lf = 0.55; lb = -0.45; bob = -2; }
+    else if (pose === 'walk1') { lf = -0.42; lb = 0.5;  bob = -2; }
+    else if (pose === 'jump')  { lf = 0.6;  lb = 0.95;  bob = -4; armFront = -0.6; }
+    else if (pose === 'attack'){ lean = 0.2; armFront = -1.0; swordAngle = -0.5;
+                                 lf = 0.7; lb = -0.5; mouth = 'open'; }
+    else if (pose === 'hurt')  { lean = -0.35; lf = -0.5; lb = 0.4; bob = -1;
+                                 armFront = -1.6; mouth = 'hurt'; }
+    else if (pose === 'dodge') { lean = 0.7; bob = 16; lf = 1.3; lb = 1.0;
+                                 armFront = 1.1; armBack = 1.2; }
 
-    /* back limbs (drawn behind the body) */
-    this.limb(g, CX + 5, hipY, 16, 10, lb, BLUEDARK);
-    this.drawShoe(g, CX + 5, hipY, 16, lb, SHOEDK);
-    this.limb(g, CX + 11, shoulderY, 15, 8, ab, BLUEDARK);
+    g.save();
+    g.translateCanvas(CX, GY - 56 + bob);
+    g.rotateCanvas(lean);
+    g.translateCanvas(-CX, -(GY - 56 + bob));
+
+    const hipY = GY - 38 + bob, shoulderY = GY - 74 + bob, bodyTop = GY - 88 + bob;
+    const bodyW = 36, bodyH = 46;
+
+    /* back leg + arm */
+    this.limb(g, CX + 5, hipY, 30, 13, lb, BLUEDARK);
+    this.drawShoe(g, CX + 5, hipY, 30, lb, SHOEDK);
+    this.limb(g, CX + 9, shoulderY, 26, 11, armBack, BLUEDARK);
 
     /* body */
     g.fillStyle(BLUE, 1);
-    g.fillRoundedRect(CX - bodyW / 2, bodyTop, bodyW, bodyH, 15);
+    g.fillRoundedRect(CX - bodyW / 2, bodyTop, bodyW, bodyH, 14);
     g.fillStyle(0xffffff, 0.16);
-    g.fillRoundedRect(CX - bodyW / 2 + 5, bodyTop + 5, bodyW - 15, bodyH - 16, 10);
+    g.fillRoundedRect(CX - bodyW / 2 + 5, bodyTop + 5, bodyW - 16, bodyH - 18, 9);
+    /* belt */
+    g.fillStyle(SHOEDK, 1);
+    g.fillRect(CX - bodyW / 2, bodyTop + bodyH - 12, bodyW, 7);
 
-    /* front limbs */
-    this.limb(g, CX - 5, hipY, 16, 10, lf, BLUEMID);
-    this.drawShoe(g, CX - 5, hipY, 16, lf, SHOE);
-    this.limb(g, CX - 11, shoulderY, 15, 8, af, BLUEMID);
+    /* front leg */
+    this.limb(g, CX - 5, hipY, 30, 13, lf, BLUEMID);
+    this.drawShoe(g, CX - 5, hipY, 30, lf, SHOE);
 
+    /* head */
+    const headY = bodyTop - 2;
+    g.fillStyle(SKIN, 1);
+    g.fillCircle(CX, headY, 16);
+    g.fillStyle(0x3a2150, 1);                       // hair
+    g.fillRoundedRect(CX - 16, headY - 17, 32, 13, 8);
     /* face */
-    const eyeY = bodyTop + 16;
-    const look = pose === 'run' ? 1.6 : (pose === 'hurt' ? -1 : 0);
+    const eyeY = headY + 2;
     g.fillStyle(0xffffff, 1);
-    g.fillCircle(CX - 7, eyeY, 6.6);
-    g.fillCircle(CX + 7, eyeY, 6.6);
+    g.fillCircle(CX - 6, eyeY, 5.5); g.fillCircle(CX + 7, eyeY, 5.5);
     g.fillStyle(0x232048, 1);
     if (pose === 'hurt') {
-      this.drawX(g, CX - 7, eyeY); this.drawX(g, CX + 7, eyeY);
+      this.drawX(g, CX - 6, eyeY); this.drawX(g, CX + 7, eyeY);
     } else {
-      g.fillCircle(CX - 7 + look, eyeY + 1, 3.5);
-      g.fillCircle(CX + 7 + look, eyeY + 1, 3.5);
+      g.fillCircle(CX - 4, eyeY + 1, 3); g.fillCircle(CX + 9, eyeY + 1, 3);
     }
     g.fillStyle(0x232048, 1);
-    if (mouth === 'smile') g.fillRoundedRect(CX - 7, eyeY + 12, 14, 6, 3);
-    else if (mouth === 'open') g.fillCircle(CX, eyeY + 14, 5);
-    else g.fillCircle(CX, eyeY + 14, 4);
-    g.fillStyle(0xff8fae, 0.5);
-    g.fillCircle(CX - 13, eyeY + 7, 3.4);
-    g.fillCircle(CX + 13, eyeY + 7, 3.4);
-  }
+    if (mouth === 'open') g.fillCircle(CX + 2, eyeY + 11, 4.5);
+    else if (mouth === 'hurt') g.fillCircle(CX + 2, eyeY + 12, 3.5);
+    else g.fillRoundedRect(CX - 4, eyeY + 10, 12, 4, 2);
 
-  drawHeroSlide(g) {
-    const BLUE = 0x5b6ef5, BLUEMID = 0x4a5ae0, BLUEDARK = 0x3a48c0, SHOE = 0xffce3a;
-    /* legs trailing behind */
-    this.limb(g, 30, 60, 20, 10, 1.45, BLUEDARK);
-    this.drawShoe(g, 30, 60, 20, 1.45, 0xe6a81e);
-    this.limb(g, 28, 64, 18, 10, 1.7, BLUEMID);
-    this.drawShoe(g, 28, 64, 18, 1.7, SHOE);
-    /* tilted body */
-    g.save();
-    g.translateCanvas(40, 58);
-    g.rotateCanvas(-0.92);
-    g.fillStyle(BLUE, 1);
-    g.fillRoundedRect(-18, -19, 36, 38, 15);
-    g.fillStyle(0xffffff, 0.16);
-    g.fillRoundedRect(-13, -14, 22, 22, 9);
+    /* front arm + sword */
+    this.limb(g, CX - 9, shoulderY, 24, 11, armFront, SKIN);
+    const handX = CX - 9 - Math.sin(armFront) * 24;
+    const handY = shoulderY + Math.cos(armFront) * 24;
+    this.drawSword(g, handX, handY, swordAngle);
+
     g.restore();
-    /* arm reaching forward */
-    this.limb(g, 52, 50, 16, 8, -1.35, BLUEMID);
-    /* face looking ahead */
-    const ex = 52, ey = 50;
-    g.fillStyle(0xffffff, 1);
-    g.fillCircle(ex - 2, ey - 6, 6);
-    g.fillCircle(ex + 8, ey - 4, 6);
-    g.fillStyle(0x232048, 1);
-    g.fillCircle(ex, ey - 6, 3.2);
-    g.fillCircle(ex + 10, ey - 4, 3.2);
-    g.fillStyle(0x232048, 1);
-    g.fillCircle(ex + 5, ey + 5, 4);
-    g.fillStyle(0xff8fae, 0.5);
-    g.fillCircle(ex - 4, ey + 3, 3);
   }
 
   drawShoe(g, ax, ay, len, angle, color) {
     const fx = ax - Math.sin(angle) * len;
     const fy = ay + Math.cos(angle) * len;
     g.fillStyle(color, 1);
-    g.fillEllipse(fx, fy + 2, 17, 10);
+    g.fillEllipse(fx + 3, fy + 3, 22, 12);
+  }
+
+  drawSword(g, hx, hy, angle) {
+    g.save();
+    g.translateCanvas(hx, hy);
+    g.rotateCanvas(angle);
+    g.fillStyle(0x6a5a3a, 1);  g.fillRoundedRect(-4, -6, 8, 14, 3);   // grip
+    g.fillStyle(0xffce3a, 1);  g.fillRoundedRect(-12, -10, 24, 6, 3); // guard
+    g.fillStyle(0xdfe6f5, 1);                                          // blade
+    g.fillTriangle(-6, -10, 6, -10, 0, -54);
+    g.fillStyle(0xffffff, 0.8);
+    g.fillTriangle(-2, -12, 2, -12, 0, -48);
+    g.restore();
   }
 
   drawX(g, x, y) {
-    g.lineStyle(2.5, 0x232048, 1);
+    g.lineStyle(2.6, 0x232048, 1);
     g.lineBetween(x - 4, y - 4, x + 4, y + 4);
     g.lineBetween(x - 4, y + 4, x + 4, y - 4);
   }
 
-  /* =====================  collectibles  ================================= */
+  /* ======================================================================
+     MONSTERS — a chunky body shared by every enemy and boss
+     ====================================================================== */
+  foeStyle(key, pose) {
+    const styles = {
+      goblin:  { body: 0x6cae3e, bodyDark: 0x4d7c2a, belly: 0x9fd071,
+                 feature: 'ears', weapon: null },
+      orc:     { body: 0x3f7a4a, bodyDark: 0x2a5333, belly: 0x6fa878,
+                 feature: 'tusks', weapon: 'club' },
+      troll:   { body: 0x6f8fb8, bodyDark: 0x4a6486, belly: 0x9cb6d6,
+                 feature: 'horns', weapon: 'club' },
+      mage:    { body: 0x7a4fb0, bodyDark: 0x553480, belly: 0x9d78c8,
+                 feature: 'hat', weapon: 'staff' },
+      armored: { body: 0x8a8f9e, bodyDark: 0x5c6070, belly: 0xb3b8c6,
+                 feature: 'helmet', weapon: 'club' },
+      shadow:  { body: 0x2c2840, bodyDark: 0x16142a, belly: 0x423c63,
+                 feature: 'aura', weapon: 'sword', eyeGlow: 0x57e8ff },
+    };
+    return Object.assign({ pose: pose }, styles[key] || styles.goblin);
+  }
+
+  bossStyle(key, pose) {
+    const styles = {
+      goblin_king:  { body: 0x6cae3e, bodyDark: 0x4d7c2a, belly: 0x9fd071,
+                      feature: 'crown', weapon: 'club' },
+      orc_warchief: { body: 0x3f7a4a, bodyDark: 0x2a5333, belly: 0x6fa878,
+                      feature: 'warhelm', weapon: 'bigclub' },
+      frost_troll:  { body: 0x86b6e0, bodyDark: 0x5285b6, belly: 0xbfe0f5,
+                      feature: 'iceback', weapon: 'bigclub' },
+      dragon_lord:  { body: 0x9c2f4a, bodyDark: 0x6a1d33, belly: 0xe07a4a,
+                      feature: 'wings', weapon: 'sword', eyeGlow: 0xffd23f },
+    };
+    return Object.assign({ pose: pose }, styles[key] || styles.goblin_king);
+  }
+
+  drawMonster(g, W, H, c) {
+    const cx = W / 2, gy = H - 3;
+    const atk = c.pose === 'atk';
+    const bodyW = W * 0.80;
+    const bodyH = H * 0.60;
+    const bodyTop = gy - H * 0.05 - bodyH;
+
+    /* wings drawn behind the body */
+    if (c.feature === 'wings') {
+      g.fillStyle(c.bodyDark, 1);
+      [-1, 1].forEach((s) => {
+        g.fillTriangle(cx + s * bodyW * 0.22, bodyTop + bodyH * 0.25,
+                       cx + s * bodyW * 0.60, bodyTop - H * 0.04,
+                       cx + s * bodyW * 0.52, bodyTop + bodyH * 0.66);
+      });
+    }
+    if (c.feature === 'iceback') {
+      g.fillStyle(0xdaf0ff, 0.9);
+      [-0.5, 0, 0.5].forEach((s) => {
+        g.fillTriangle(cx + s * bodyW * 0.4 - 10, bodyTop + 6,
+                       cx + s * bodyW * 0.4 + 10, bodyTop + 6,
+                       cx + s * bodyW * 0.4, bodyTop - H * 0.22);
+      });
+    }
+
+    /* feet */
+    g.fillStyle(c.bodyDark, 1);
+    g.fillEllipse(cx - bodyW * 0.24, gy, bodyW * 0.34, H * 0.11);
+    g.fillEllipse(cx + bodyW * 0.24, gy, bodyW * 0.34, H * 0.11);
+
+    /* back arm */
+    g.fillStyle(c.bodyDark, 1);
+    g.fillRoundedRect(cx + bodyW * 0.30, bodyTop + bodyH * 0.18,
+                      bodyW * 0.20, bodyH * 0.50, bodyW * 0.10);
+
+    /* aura behind shadow knight */
+    if (c.feature === 'aura') {
+      g.fillStyle(0x57e8ff, 0.12);
+      g.fillCircle(cx, bodyTop + bodyH * 0.5, bodyW * 0.62);
+    }
+
+    /* body */
+    g.fillStyle(c.body, 1);
+    g.fillRoundedRect(cx - bodyW / 2, bodyTop, bodyW, bodyH, bodyW * 0.30);
+    g.fillStyle(c.belly, 1);
+    g.fillEllipse(cx, bodyTop + bodyH * 0.62, bodyW * 0.52, bodyH * 0.46);
+    g.fillStyle(0xffffff, 0.12);
+    g.fillEllipse(cx - bodyW * 0.18, bodyTop + bodyH * 0.30, bodyW * 0.22, bodyH * 0.26);
+
+    /* eyes */
+    const eyeY = bodyTop + bodyH * 0.30;
+    const eyeDX = bodyW * 0.20;
+    g.fillStyle(0xffffff, 1);
+    g.fillEllipse(cx - eyeDX, eyeY, bodyW * 0.20, bodyH * 0.22);
+    g.fillEllipse(cx + eyeDX, eyeY, bodyW * 0.20, bodyH * 0.22);
+    const pupil = c.eyeGlow || 0x1c1830;
+    g.fillStyle(pupil, 1);
+    const look = atk ? -bodyW * 0.05 : 0;
+    g.fillCircle(cx - eyeDX + look, eyeY + 2, bodyW * 0.075);
+    g.fillCircle(cx + eyeDX + look, eyeY + 2, bodyW * 0.075);
+    if (c.eyeGlow) {
+      g.fillStyle(c.eyeGlow, 0.4);
+      g.fillCircle(cx - eyeDX, eyeY, bodyW * 0.14);
+      g.fillCircle(cx + eyeDX, eyeY, bodyW * 0.14);
+    }
+    /* angry brows */
+    g.lineStyle(Math.max(2, bodyW * 0.05), c.bodyDark, 1);
+    g.lineBetween(cx - eyeDX - bodyW * 0.12, eyeY - bodyH * 0.20,
+                  cx - eyeDX + bodyW * 0.10, eyeY - bodyH * 0.06);
+    g.lineBetween(cx + eyeDX + bodyW * 0.12, eyeY - bodyH * 0.20,
+                  cx + eyeDX - bodyW * 0.10, eyeY - bodyH * 0.06);
+
+    /* mouth */
+    g.fillStyle(0x1c1226, 1);
+    const mY = bodyTop + bodyH * 0.66;
+    if (atk) g.fillEllipse(cx, mY, bodyW * 0.26, bodyH * 0.20);
+    else g.fillRoundedRect(cx - bodyW * 0.16, mY, bodyW * 0.32, bodyH * 0.07, 3);
+
+    /* features */
+    if (c.feature === 'ears') {
+      g.fillStyle(c.body, 1);
+      g.fillTriangle(cx - bodyW * 0.46, bodyTop + bodyH * 0.10,
+                     cx - bodyW * 0.46, bodyTop + bodyH * 0.45,
+                     cx - bodyW * 0.74, bodyTop + bodyH * 0.18);
+      g.fillTriangle(cx + bodyW * 0.46, bodyTop + bodyH * 0.10,
+                     cx + bodyW * 0.46, bodyTop + bodyH * 0.45,
+                     cx + bodyW * 0.74, bodyTop + bodyH * 0.18);
+    } else if (c.feature === 'tusks') {
+      g.fillStyle(0xfff0d0, 1);
+      g.fillTriangle(cx - bodyW * 0.12, mY, cx - bodyW * 0.04, mY,
+                     cx - bodyW * 0.10, mY + bodyH * 0.22);
+      g.fillTriangle(cx + bodyW * 0.12, mY, cx + bodyW * 0.04, mY,
+                     cx + bodyW * 0.10, mY + bodyH * 0.22);
+    } else if (c.feature === 'horns') {
+      g.fillStyle(0xf2e6c8, 1);
+      g.fillTriangle(cx - bodyW * 0.30, bodyTop + 4, cx - bodyW * 0.14, bodyTop + 4,
+                     cx - bodyW * 0.34, bodyTop - H * 0.16);
+      g.fillTriangle(cx + bodyW * 0.30, bodyTop + 4, cx + bodyW * 0.14, bodyTop + 4,
+                     cx + bodyW * 0.34, bodyTop - H * 0.16);
+    } else if (c.feature === 'hat') {
+      g.fillStyle(c.bodyDark, 1);
+      g.fillTriangle(cx - bodyW * 0.42, bodyTop + 6, cx + bodyW * 0.42, bodyTop + 6,
+                     cx, bodyTop - H * 0.34);
+      g.fillStyle(0xffd23f, 1);
+      g.fillCircle(cx, bodyTop - H * 0.30, bodyW * 0.07);
+    } else if (c.feature === 'helmet') {
+      g.fillStyle(0x6c7080, 1);
+      g.fillRoundedRect(cx - bodyW * 0.40, bodyTop - 4, bodyW * 0.80, bodyH * 0.26, 8);
+      g.fillStyle(0x3a3d48, 1);
+      g.fillRect(cx - bodyW * 0.30, eyeY - bodyH * 0.04, bodyW * 0.60, bodyH * 0.05);
+    } else if (c.feature === 'crown') {
+      g.fillStyle(0xffd23f, 1);
+      const cyTop = bodyTop - H * 0.04;
+      g.fillRect(cx - bodyW * 0.34, cyTop, bodyW * 0.68, bodyH * 0.10);
+      [-0.30, 0, 0.30].forEach((s) => {
+        g.fillTriangle(cx + s * bodyW - bodyW * 0.08, cyTop,
+                       cx + s * bodyW + bodyW * 0.08, cyTop,
+                       cx + s * bodyW, cyTop - H * 0.13);
+      });
+    } else if (c.feature === 'warhelm') {
+      g.fillStyle(0x4a4d58, 1);
+      g.fillRoundedRect(cx - bodyW * 0.42, bodyTop - H * 0.06, bodyW * 0.84, bodyH * 0.30, 10);
+      g.fillStyle(0xf2e6c8, 1);
+      g.fillTriangle(cx - bodyW * 0.42, bodyTop - H * 0.02, cx - bodyW * 0.30, bodyTop - H * 0.02,
+                     cx - bodyW * 0.66, bodyTop - H * 0.20);
+      g.fillTriangle(cx + bodyW * 0.42, bodyTop - H * 0.02, cx + bodyW * 0.30, bodyTop - H * 0.02,
+                     cx + bodyW * 0.66, bodyTop - H * 0.20);
+    }
+
+    /* front arm + weapon */
+    const armX = cx - bodyW * 0.42;
+    const armY = bodyTop + bodyH * 0.20;
+    g.fillStyle(c.body, 1);
+    if (atk) {
+      g.fillRoundedRect(armX - bodyW * 0.16, armY - bodyH * 0.30,
+                        bodyW * 0.22, bodyH * 0.46, bodyW * 0.10);
+      this.drawWeapon(g, c.weapon, armX - bodyW * 0.05, armY - bodyH * 0.34, -0.7, bodyW);
+    } else {
+      g.fillRoundedRect(armX - bodyW * 0.06, armY,
+                        bodyW * 0.22, bodyH * 0.50, bodyW * 0.10);
+      this.drawWeapon(g, c.weapon, armX + bodyW * 0.05, armY + bodyH * 0.40, 0.25, bodyW);
+    }
+  }
+
+  drawWeapon(g, type, x, y, angle, scale) {
+    if (!type) return;
+    g.save();
+    g.translateCanvas(x, y);
+    g.rotateCanvas(angle);
+    const s = scale / 70;
+    if (type === 'club' || type === 'bigclub') {
+      const big = type === 'bigclub' ? 1.5 : 1;
+      g.fillStyle(0x6a4a2a, 1);
+      g.fillRoundedRect(-4 * s, 0, 8 * s, 34 * s * big, 4 * s);
+      g.fillStyle(0x8a6238, 1);
+      g.fillCircle(0, -6 * s, 14 * s * big);
+      g.fillStyle(0x5a3c20, 1);
+      g.fillCircle(-5 * s, -10 * s, 3 * s); g.fillCircle(6 * s, -4 * s, 3 * s);
+    } else if (type === 'staff') {
+      g.fillStyle(0x6a4a2a, 1);
+      g.fillRoundedRect(-3 * s, -6 * s, 6 * s, 46 * s, 3 * s);
+      g.fillStyle(0x57e8ff, 1);   g.fillCircle(0, -10 * s, 9 * s);
+      g.fillStyle(0xffffff, 0.8); g.fillCircle(-2 * s, -12 * s, 3 * s);
+    } else if (type === 'sword') {
+      g.fillStyle(0x6a5a3a, 1); g.fillRoundedRect(-3 * s, 0, 6 * s, 12 * s, 3 * s);
+      g.fillStyle(0xc0c6d6, 1); g.fillTriangle(-5 * s, 0, 5 * s, 0, 0, -40 * s);
+    }
+    g.restore();
+  }
+
+  /* ======================================================================
+     EFFECTS, PICKUPS, PARTICLES
+     ====================================================================== */
+  drawSlash(g) {
+    const cx = 55, cy = 55;
+    for (let i = 0; i < 5; i++) {
+      const a = 0.16 - i * 0.03;
+      g.fillStyle(0xffffff, a);
+      g.beginPath();
+      g.arc(cx, cy, 50 - i * 3, -0.9, 0.9, false);
+      g.arc(cx, cy, 20 - i * 2, 0.9, -0.9, true);
+      g.closePath();
+      g.fillPath();
+    }
+    g.fillStyle(0xffffff, 0.95);
+    g.beginPath();
+    g.arc(cx, cy, 48, -0.55, 0.55, false);
+    g.arc(cx, cy, 38, 0.55, -0.55, true);
+    g.closePath();
+    g.fillPath();
+  }
+
+  drawBolt(g) {
+    g.fillStyle(0xffffff, 0.25); g.fillCircle(16, 16, 15);
+    g.fillStyle(0xffffff, 0.55); g.fillCircle(16, 16, 10);
+    g.fillStyle(0xffffff, 1);    g.fillCircle(16, 16, 6);
+  }
+
+  drawShadow(g) {
+    g.fillStyle(0x000000, 0.30); g.fillEllipse(46, 13, 86, 22);
+    g.fillStyle(0x000000, 0.18); g.fillEllipse(46, 13, 92, 26);
+  }
+
   drawCoin(g) {
     g.fillStyle(0x000000, 0.18); g.fillCircle(16, 17, 12);
     g.fillStyle(0xe6a81e, 1);    g.fillCircle(15, 15, 13);
@@ -195,127 +436,31 @@ class BootScene extends Phaser.Scene {
     g.fillStyle(0xfff3b8, 0.95); g.fillCircle(11, 11, 3.4);
   }
 
-  drawGem(g) {
-    const pts = [{ x: 17, y: 2 }, { x: 30, y: 13 }, { x: 24, y: 30 },
-                 { x: 10, y: 30 }, { x: 4, y: 13 }];
+  drawStarIcon(g) {
+    const cx = 17, cy = 18, pts = [];
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 === 0 ? 15 : 6.4;
+      const a = -Math.PI / 2 + i * Math.PI / 5;
+      pts.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r });
+    }
     g.fillStyle(0x000000, 0.18);
     g.fillPoints(pts.map((p) => ({ x: p.x + 1, y: p.y + 2 })), true);
-    g.fillStyle(0x46e0d0, 1); g.fillPoints(pts, true);
-    g.fillStyle(0x8af2e8, 1);
-    g.fillTriangle(17, 2, 4, 13, 17, 15);
-    g.fillStyle(0xffffff, 0.7);
-    g.fillTriangle(17, 2, 11, 8, 17, 11);
-  }
-
-  /* =====================  obstacles  ==================================== */
-  drawSpike(g) {
-    g.fillStyle(0x2e2a45, 1); g.fillRoundedRect(3, 42, 52, 13, 6);
-    const heights = [10, 3, 14];
-    for (let i = 0; i < 3; i++) {
-      const bx = 5 + i * 16, top = heights[i];
-      g.fillStyle(0x4a4566, 1);
-      g.fillTriangle(bx, 47, bx + 17, 47, bx + 8.5, top);
-      g.fillStyle(0x6a6494, 1);
-      g.fillTriangle(bx, 47, bx + 8.5, 47, bx + 8.5, top);
-      g.fillStyle(0xff5a3c, 1);
-      g.fillTriangle(bx + 4, top + 11, bx + 13, top + 11, bx + 8.5, top);
-    }
-  }
-
-  drawLava(g) {
-    g.fillStyle(0x3a2230, 1); g.fillRoundedRect(0, 8, 132, 32, 9);
-    g.fillStyle(0xff6a2a, 1);  g.fillRoundedRect(5, 12, 122, 24, 8);
-    g.fillStyle(0xffb43c, 1);  g.fillRoundedRect(10, 15, 112, 13, 6);
-    g.fillStyle(0xffe884, 0.95);
-    g.fillCircle(32, 21, 5); g.fillCircle(72, 19, 6); g.fillCircle(104, 22, 4);
-    g.fillStyle(0x3a2230, 1);
-    for (let i = 0; i < 6; i++) {
-      const x = 8 + i * 22;
-      g.fillTriangle(x, 12, x + 14, 12, x + 7, 4);
-    }
-  }
-
-  drawSaw(g) {
-    const cx = 32, cy = 32, n = 10, inner = 22, outer = 31;
-    g.fillStyle(0x9a9ab8, 1);
-    for (let i = 0; i < n; i++) {
-      const a0 = (i / n) * Math.PI * 2;
-      const a1 = ((i + 0.5) / n) * Math.PI * 2;
-      const am = ((i + 0.25) / n) * Math.PI * 2;
-      g.fillTriangle(
-        cx + Math.cos(a0) * inner, cy + Math.sin(a0) * inner,
-        cx + Math.cos(a1) * inner, cy + Math.sin(a1) * inner,
-        cx + Math.cos(am) * outer, cy + Math.sin(am) * outer);
-    }
-    g.fillStyle(0xb6b6d0, 1); g.fillCircle(cx, cy, inner);
-    g.fillStyle(0x8e8eae, 1); g.fillCircle(cx, cy, inner - 4);
-    g.fillStyle(0xffffff, 0.25); g.fillCircle(cx - 7, cy - 7, 6);
-    g.fillStyle(0xff5a3c, 1); g.fillCircle(cx, cy, 8);
-    g.fillStyle(0x2e2a45, 1); g.fillCircle(cx, cy, 3.6);
-  }
-
-  drawDrone(g) {
-    g.fillStyle(0x6a6494, 1); g.fillRoundedRect(13, 2, 38, 6, 3);
-    g.fillStyle(0x3a3550, 1); g.fillRect(31, 4, 2, 9);
-    g.fillStyle(0x3a3550, 1);
-    g.fillTriangle(13, 24, 2, 19, 13, 34);
-    g.fillTriangle(51, 24, 62, 19, 51, 34);
-    g.fillStyle(0x4a4566, 1); g.fillRoundedRect(12, 12, 40, 31, 15);
-    g.fillStyle(0x5a5480, 1); g.fillRoundedRect(16, 16, 32, 19, 11);
-    g.fillStyle(0xff5a3c, 1);  g.fillCircle(32, 27, 9);
-    g.fillStyle(0x2e2a45, 1);  g.fillCircle(32, 27, 3.6);
-    g.fillStyle(0xffd6c8, 1);  g.fillCircle(29, 24, 2.6);
-    g.fillStyle(0xff5a3c, 0.45); g.fillCircle(32, 46, 8);
-  }
-
-  /* =====================  power-ups  ==================================== */
-  drawPowerUp(g, type) {
-    const bg = { shield: 0x4a7bff, magnet: 0xe0566b, slow: 0x9b6bff,
-                 x2: 0xf5b829, heart: 0xff7aa8 }[type];
-    g.fillStyle(0x000000, 0.2); g.fillCircle(25, 26, 21);
-    g.fillStyle(bg, 1); g.fillCircle(24, 24, 21);
-    g.fillStyle(0xffffff, 0.22); g.fillCircle(18, 17, 9);
-    g.lineStyle(3, 0xffffff, 0.9); g.strokeCircle(24, 24, 21);
-    g.fillStyle(0xffffff, 1);
-    if (type === 'shield') {
-      g.fillPoints([{ x: 24, y: 10 }, { x: 35, y: 15 }, { x: 35, y: 25 },
-                    { x: 24, y: 37 }, { x: 13, y: 25 }, { x: 13, y: 15 }], true);
-      g.fillStyle(bg, 1); g.fillCircle(24, 22, 4);
-    } else if (type === 'magnet') {
-      g.fillRoundedRect(13, 16, 9, 21, 3);
-      g.fillRoundedRect(26, 16, 9, 21, 3);
-      g.fillRoundedRect(13, 30, 22, 8, 4);
-      g.fillStyle(0xffd2d2, 1);
-      g.fillRect(13, 14, 9, 5); g.fillRect(26, 14, 9, 5);
-    } else if (type === 'slow') {
-      g.fillCircle(24, 25, 12);
-      g.fillStyle(0x9b6bff, 1); g.fillCircle(24, 25, 9.5);
-      g.lineStyle(3, 0xffffff, 1);
-      g.lineBetween(24, 25, 24, 17);
-      g.lineBetween(24, 25, 30, 28);
-      g.fillStyle(0xffffff, 1); g.fillCircle(24, 25, 2.4);
-    } else if (type === 'x2') {
-      g.fillCircle(19, 27, 9); g.fillCircle(30, 21, 9);
-      g.fillStyle(0xf5b829, 1);
-      g.fillCircle(19, 27, 5.5); g.fillCircle(30, 21, 5.5);
-    } else { /* heart */
-      g.fillCircle(18, 21, 7); g.fillCircle(30, 21, 7);
-      g.fillTriangle(11, 23, 37, 23, 24, 38);
-    }
+    g.fillStyle(0xffcf3f, 1); g.fillPoints(pts, true);
+    g.fillStyle(0xfff3b8, 0.9);
+    g.fillCircle(cx - 3, cy - 4, 3.6);
   }
 
   drawHeart(g, full) {
     const c = full ? 0xff5a6e : 0x3c3760;
     g.fillStyle(0x000000, 0.2);
-    g.fillCircle(12, 14, 8); g.fillCircle(24, 14, 8);
-    g.fillTriangle(4, 17, 32, 17, 18, 31);
+    g.fillCircle(13, 15, 9); g.fillCircle(26, 15, 9);
+    g.fillTriangle(4, 18, 35, 18, 19, 34);
     g.fillStyle(c, 1);
-    g.fillCircle(11, 12, 8); g.fillCircle(23, 12, 8);
-    g.fillTriangle(3, 15, 31, 15, 17, 30);
-    if (full) { g.fillStyle(0xffffff, 0.45); g.fillCircle(9, 9, 3); }
+    g.fillCircle(12, 13, 9); g.fillCircle(25, 13, 9);
+    g.fillTriangle(3, 16, 34, 16, 18, 33);
+    if (full) { g.fillStyle(0xffffff, 0.5); g.fillCircle(9, 9, 3.4); }
   }
 
-  /* =====================  particles & scenery  ========================== */
   drawSpark(g) {
     g.fillStyle(0xffffff, 0.25); g.fillCircle(8, 8, 7);
     g.fillStyle(0xffffff, 0.6);  g.fillCircle(8, 8, 4.5);
@@ -324,12 +469,9 @@ class BootScene extends Phaser.Scene {
 
   drawCloud(g) {
     g.fillStyle(0xffffff, 1);
-    g.fillCircle(38, 46, 26);
-    g.fillCircle(72, 32, 32);
-    g.fillCircle(106, 44, 27);
+    g.fillCircle(38, 46, 26); g.fillCircle(72, 32, 32); g.fillCircle(106, 44, 27);
     g.fillRect(38, 44, 68, 26);
-    g.fillStyle(0xeaf4ff, 1);
-    g.fillRect(38, 60, 70, 10);
+    g.fillStyle(0xeaf4ff, 1); g.fillRect(38, 60, 70, 10);
   }
 
   drawStar(g) {
@@ -347,7 +489,6 @@ class BootScene extends Phaser.Scene {
     }
   }
 
-  /* a seamless, tileable silhouette of rolling hills */
   drawHills(g, w, h, color, periods, amp) {
     g.fillStyle(color, 1);
     g.beginPath();
@@ -363,13 +504,12 @@ class BootScene extends Phaser.Scene {
   }
 
   drawGround(g, w, h, biome) {
-    g.fillStyle(biome.ground, 1);  g.fillRect(0, 0, w, h);
+    g.fillStyle(biome.ground, 1);     g.fillRect(0, 0, w, h);
     g.fillStyle(biome.groundEdge, 1); g.fillRect(0, 0, w, 11);
-    g.fillStyle(biome.groundDark, 1);
-    g.fillRect(0, 11, w, 4);
+    g.fillStyle(biome.groundDark, 1); g.fillRect(0, 11, w, 4);
     const dots = [[30, 46], [88, 70], [150, 40], [210, 84], [120, 120], [60, 100], [200, 130]];
+    g.fillStyle(biome.groundDark, 1);
     dots.forEach(([x, y]) => g.fillCircle(x, y, 6));
-    g.fillStyle(biome.groundDark, 0.4);
-    g.fillRect(0, 90, w, 3);
+    g.fillStyle(biome.groundDark, 0.4); g.fillRect(0, 90, w, 3);
   }
 }
