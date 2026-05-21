@@ -31,8 +31,14 @@ class CharSelectScene extends Phaser.Scene {
       const panel = UI.panel(this, x, y, cardW, 320, UI.COLORS.panel,
         { stroke: UI.COLORS.panelLight, strokeWidth: 3 });
 
-      const hero = this.add.sprite(x, y - 36, 'hero_idle')
-        .setOrigin(0.5, 1).setScale(1.5).setTint(tints[id]);
+      const hero = this.add.sprite(x, y - 36, 'hero_idle').setOrigin(0.5, 1);
+      AnimHelper.initSprite(this, hero, 'characters', id, 'hero');
+      if (hero._hasArt) {
+        hero.setScale(hero.scaleX * 1.5);
+      } else {
+        hero.setScale(1.5);
+        hero.setTint(tints[id]);
+      }
       this.tweens.add({ targets: hero, y: hero.y - 8, duration: 700 + i * 90,
         yoyo: true, repeat: -1, ease: 'Sine.inOut' });
 

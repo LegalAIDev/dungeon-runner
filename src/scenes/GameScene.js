@@ -816,8 +816,7 @@ class GameScene extends Phaser.Scene {
     PlayerState.clearLevel(this.worldId, this.levelIndex, this.runCoins + bonus);
     if (perfect) DailyQuests.progress('clearLevel', 1);
 
-    this.player.anims.stop();
-    this.player.setTexture('hero_idle');
+    AnimHelper.playState(this.player, 'idle');
     this.flashBanner(this.isBossLevel ? 'BOSS DEFEATED!' : 'LEVEL CLEAR!');
 
     this.time.delayedCall(1500, () => {

@@ -16,10 +16,23 @@ class MenuScene extends Phaser.Scene {
 
     /* hero squaring up against a goblin */
     this.add.image(770, GY, 'shadowblob').setOrigin(0.5).setDepth(1);
-    this.hero = this.add.sprite(770, GY + 6, 'hero_idle').setOrigin(0.5, 1).setScale(1.25);
-    this.hero.play('hero-walk');
-    const foe = this.add.sprite(866, GY + 4, 'foe_goblin').setOrigin(0.5, 1)
-      .setScale(1.2).setFlipX(true);
+    const charId = PlayerState.equippedCharacter().id;
+    this.hero = this.add.sprite(770, GY + 6, 'hero_idle').setOrigin(0.5, 1);
+    AnimHelper.initSprite(this, this.hero, 'characters', charId, 'hero');
+    if (this.hero._hasArt) {
+      this.hero.setScale(this.hero.scaleX * 1.25);
+    } else {
+      this.hero.setScale(1.25);
+      this.hero.play('hero-walk');
+    }
+    const foe = this.add.sprite(866, GY + 4, 'foe_goblin').setOrigin(0.5, 1);
+    AnimHelper.initSprite(this, foe, 'enemies', 'goblin', 'foe_goblin');
+    if (foe._hasArt) {
+      foe.setScale(foe.scaleX * 1.2);
+    } else {
+      foe.setScale(1.2);
+    }
+    foe.setFlipX(true);
     this.tweens.add({ targets: foe, y: foe.y - 8, duration: 520,
       yoyo: true, repeat: -1, ease: 'Sine.inOut' });
 
