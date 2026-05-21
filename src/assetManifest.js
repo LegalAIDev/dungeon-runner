@@ -23,6 +23,7 @@ const ASSET_MANIFEST = {
         attack: { file: 'src/sprites/Martial Hero/Sprites/Attack1.png', frames: 6, fps: 14, loop: false },
         hurt:   { file: 'src/sprites/Martial Hero/Sprites/Take Hit.png',frames: 4, fps: 10, loop: false },
         dodge:  { file: 'src/sprites/Martial Hero/Sprites/Run.png',     frames: 8, fps: 20, loop: false },
+        death:  { file: 'src/sprites/Martial Hero/Sprites/Death.png',   frames: 6, fps: 9,  loop: false },
       },
     },
 
@@ -36,6 +37,7 @@ const ASSET_MANIFEST = {
         attack: { file: 'src/sprites/Martial Hero 2/Sprites/Attack1.png',  frames: 4, fps: 14, loop: false },
         hurt:   { file: 'src/sprites/Martial Hero 2/Sprites/Take hit.png', frames: 3, fps: 10, loop: false },
         dodge:  { file: 'src/sprites/Martial Hero 2/Sprites/Run.png',      frames: 8, fps: 22, loop: false },
+        death:  { file: 'src/sprites/Martial Hero 2/Sprites/Death.png',    frames: 7, fps: 9,  loop: false },
       },
     },
 
@@ -49,6 +51,7 @@ const ASSET_MANIFEST = {
         attack: { file: 'src/sprites/Evil Wizard/Sprites/Attack.png',  frames: 8, fps: 14, loop: false },
         hurt:   { file: 'src/sprites/Evil Wizard/Sprites/Take Hit.png',frames: 4, fps: 10, loop: false },
         dodge:  { file: 'src/sprites/Evil Wizard/Sprites/Move.png',    frames: 8, fps: 22, loop: false },
+        death:  { file: 'src/sprites/Evil Wizard/Sprites/Death.png',   frames: 5, fps: 9,  loop: false },
       },
     },
 
@@ -62,6 +65,7 @@ const ASSET_MANIFEST = {
         attack: { file: 'src/sprites/Hero Knight 2/Sprites/Attack.png',  frames: 6,  fps: 14, loop: false },
         hurt:   { file: 'src/sprites/Hero Knight 2/Sprites/Take Hit.png',frames: 4,  fps: 10, loop: false },
         dodge:  { file: 'src/sprites/Hero Knight 2/Sprites/Dash.png',    frames: 4,  fps: 18, loop: false },
+        death:  { file: 'src/sprites/Hero Knight 2/Sprites/Death.png',   frames: 9,  fps: 9,  loop: false },
       },
     },
 
@@ -75,6 +79,7 @@ const ASSET_MANIFEST = {
         attack: { file: 'src/sprites/Huntress/Sprites/Attack1.png', frames: 5, fps: 14, loop: false },
         hurt:   { file: 'src/sprites/Huntress/Sprites/Take hit.png',frames: 3, fps: 10, loop: false },
         dodge:  { file: 'src/sprites/Huntress/Sprites/Run.png',     frames: 8, fps: 22, loop: false },
+        death:  { file: 'src/sprites/Huntress/Sprites/Death.png',   frames: 8, fps: 9,  loop: false },
       },
     },
 
@@ -88,6 +93,7 @@ const ASSET_MANIFEST = {
         attack: { file: 'src/sprites/Medieval Warrior Pack 3/Sprites/Attack1.png', frames: 4,  fps: 14, loop: false },
         hurt:   { file: 'src/sprites/Medieval Warrior Pack 3/Sprites/Get Hit.png', frames: 3,  fps: 10, loop: false },
         dodge:  { file: 'src/sprites/Medieval Warrior Pack 3/Sprites/Run.png',     frames: 6,  fps: 22, loop: false },
+        death:  { file: 'src/sprites/Medieval Warrior Pack 3/Sprites/Death.png',   frames: 9,  fps: 9,  loop: false },
       },
     },
 
@@ -101,6 +107,7 @@ const ASSET_MANIFEST = {
         attack: { file: 'src/sprites/Medieval King Pack 2/Sprites/Attack1.png', frames: 4, fps: 14, loop: false },
         hurt:   { file: 'src/sprites/Medieval King Pack 2/Sprites/Take Hit.png',frames: 4, fps: 10, loop: false },
         dodge:  { file: 'src/sprites/Medieval King Pack 2/Sprites/Run.png',     frames: 8, fps: 22, loop: false },
+        death:  { file: 'src/sprites/Medieval King Pack 2/Sprites/Death.png',   frames: 6, fps: 9,  loop: false },
       },
     },
 
@@ -114,6 +121,7 @@ const ASSET_MANIFEST = {
         attack: { file: 'src/sprites/Wizard Pack/Attack1.png', frames: 8, fps: 14, loop: false },
         hurt:   { file: 'src/sprites/Wizard Pack/Hit.png',     frames: 4, fps: 10, loop: false },
         dodge:  { file: 'src/sprites/Wizard Pack/Run.png',     frames: 8, fps: 22, loop: false },
+        death:  { file: 'src/sprites/Wizard Pack/Death.png',   frames: 7, fps: 9,  loop: false },
       },
     },
 
@@ -127,6 +135,7 @@ const ASSET_MANIFEST = {
         attack: { file: 'src/sprites/Huntress 2/Sprites/Character/Attack.png',  frames: 6,  fps: 14, loop: false },
         hurt:   { file: 'src/sprites/Huntress 2/Sprites/Character/Get Hit.png', frames: 3,  fps: 10, loop: false },
         dodge:  { file: 'src/sprites/Huntress 2/Sprites/Character/Run.png',     frames: 8,  fps: 22, loop: false },
+        death:  { file: 'src/sprites/Huntress 2/Sprites/Character/Death.png',   frames: 10, fps: 9,  loop: false },
       },
     },
 
@@ -140,6 +149,7 @@ const ASSET_MANIFEST = {
         attack: { file: 'src/sprites/Fantasy Warrior/Sprites/Attack1.png', frames: 7,  fps: 14, loop: false },
         hurt:   { file: 'src/sprites/Fantasy Warrior/Sprites/Take hit.png',frames: 3,  fps: 10, loop: false },
         dodge:  { file: 'src/sprites/Fantasy Warrior/Sprites/Run.png',     frames: 8,  fps: 22, loop: false },
+        death:  { file: 'src/sprites/Fantasy Warrior/Sprites/Death.png',   frames: 7,  fps: 9,  loop: false },
       },
     },
 
@@ -153,6 +163,7 @@ const ASSET_MANIFEST = {
         attack: { file: 'src/sprites/Colour1/Outline/120x80_PNGSheets/_Attack.png', frames: 4,  fps: 14, loop: false },
         hurt:   { file: 'src/sprites/Colour1/Outline/120x80_PNGSheets/_Hit.png',    frames: 1,  fps: 10, loop: false },
         dodge:  { file: 'src/sprites/Colour1/Outline/120x80_PNGSheets/_Dash.png',   frames: 1,  fps: 18, loop: false },
+        death:  { file: 'src/sprites/Colour1/Outline/120x80_PNGSheets/_Death.png',  frames: 10, fps: 9,  loop: false },
       },
     },
 
@@ -166,6 +177,7 @@ const ASSET_MANIFEST = {
         attack: { file: 'src/sprites/Colour2/Outline/120x80_PNGSheets/_Attack.png', frames: 4,  fps: 14, loop: false },
         hurt:   { file: 'src/sprites/Colour2/Outline/120x80_PNGSheets/_Hit.png',    frames: 1,  fps: 10, loop: false },
         dodge:  { file: 'src/sprites/Colour2/Outline/120x80_PNGSheets/_Dash.png',   frames: 1,  fps: 18, loop: false },
+        death:  { file: 'src/sprites/Colour2/Outline/120x80_PNGSheets/_Death.png',  frames: 10, fps: 9,  loop: false },
       },
     },
 
@@ -215,15 +227,60 @@ const ASSET_MANIFEST = {
       displayScale: 2.56, anchorY: 0.633,
       anims: {
         idle:   { file: 'src/sprites/Fire Worm/Sprites/Worm/Idle.png',    frames: 9,  fps: 8,  loop: true  },
+        walk:   { file: 'src/sprites/Fire Worm/Sprites/Worm/Walk.png',    frames: 9,  fps: 12, loop: true  },
         attack: { file: 'src/sprites/Fire Worm/Sprites/Worm/Attack.png',  frames: 16, fps: 14, loop: false },
         hurt:   { file: 'src/sprites/Fire Worm/Sprites/Worm/Get Hit.png', frames: 3,  fps: 10, loop: false },
+        death:  { file: 'src/sprites/Fire Worm/Sprites/Worm/Death.png',   frames: 8,  fps: 10, loop: false },
       },
     },
 
   }, // end enemies
 
   bosses: {
-    /* No real-art boss sprites uploaded yet — all bosses remain procedural. */
+
+    /* No dedicated boss art exists, so each boss reuses the closest enemy
+       sprite sheet at a far larger displayScale — a giant world monster.
+       Any boss left out here falls back to the procedural art in BootScene. */
+
+    goblin_king: {
+      frameWidth: 150, frameHeight: 150,
+      displayScale: 4.6, anchorY: 0.667,
+      anims: {
+        idle:   { file: 'src/sprites/Monster_Creatures_Fantasy(Version 1.3)/Goblin/Attack3.png', frames: 1,  fps: 2,  loop: true  },
+        attack: { file: 'src/sprites/Monster_Creatures_Fantasy(Version 1.3)/Goblin/Attack3.png', frames: 12, fps: 12, loop: false },
+      },
+    },
+
+    orc_warchief: {
+      frameWidth: 150, frameHeight: 150,
+      displayScale: 5.4, anchorY: 0.667,
+      anims: {
+        idle:   { file: 'src/sprites/Monster_Creatures_Fantasy(Version 1.3)/Mushroom/Attack3.png', frames: 1,  fps: 2,  loop: true  },
+        attack: { file: 'src/sprites/Monster_Creatures_Fantasy(Version 1.3)/Mushroom/Attack3.png', frames: 11, fps: 12, loop: false },
+      },
+    },
+
+    frost_troll: {
+      frameWidth: 150, frameHeight: 150,
+      displayScale: 3.6, anchorY: 0.667,
+      anims: {
+        idle:   { file: 'src/sprites/Monster_Creatures_Fantasy(Version 1.3)/Skeleton/Attack3.png', frames: 1, fps: 2,  loop: true  },
+        attack: { file: 'src/sprites/Monster_Creatures_Fantasy(Version 1.3)/Skeleton/Attack3.png', frames: 6, fps: 12, loop: false },
+      },
+    },
+
+    dragon_lord: {
+      frameWidth: 90, frameHeight: 90,
+      displayScale: 4.6, anchorY: 0.633,
+      anims: {
+        idle:   { file: 'src/sprites/Fire Worm/Sprites/Worm/Idle.png',    frames: 9,  fps: 8,  loop: true  },
+        walk:   { file: 'src/sprites/Fire Worm/Sprites/Worm/Walk.png',    frames: 9,  fps: 12, loop: true  },
+        attack: { file: 'src/sprites/Fire Worm/Sprites/Worm/Attack.png',  frames: 16, fps: 14, loop: false },
+        hurt:   { file: 'src/sprites/Fire Worm/Sprites/Worm/Get Hit.png', frames: 3,  fps: 10, loop: false },
+        death:  { file: 'src/sprites/Fire Worm/Sprites/Worm/Death.png',   frames: 8,  fps: 10, loop: false },
+      },
+    },
+
   },
 
 };

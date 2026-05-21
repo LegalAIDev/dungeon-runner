@@ -12,8 +12,6 @@ class MenuScene extends Phaser.Scene {
     this.bg = UI.scenicBackground(this, BIOMES[0]);
     this.cameras.main.fadeIn(350, 0, 0, 0);
 
-    this.input.once('pointerdown', () => { SFX.init(); SFX.startMusic(); });
-
     /* hero squaring up against a goblin */
     this.add.image(770, GY, 'shadowblob').setOrigin(0.5).setDepth(1);
     const charId = PlayerState.equippedCharacter().id;
@@ -74,46 +72,15 @@ class MenuScene extends Phaser.Scene {
     });
     UI.button(this, W / 2 + 129, 364, {
       label: 'Shop', width: 226, height: 56, fontSize: 21,
-      color: 0x8a63d6, onClick: () => { SFX.click(); this.scene.start('Shop', { from: 'Menu' }); },
-    });
-
-    this.soundBtn = UI.button(this, W / 2 - 108, 442, {
-      label: this.soundLabel(), width: 200, height: 46, fontSize: 17,
-      color: UI.COLORS.panelLight, onClick: () => this.toggleSound(),
-    });
-    this.musicBtn = UI.button(this, W / 2 + 108, 442, {
-      label: this.musicLabel(), width: 200, height: 46, fontSize: 17,
-      color: UI.COLORS.panelLight, onClick: () => this.toggleMusic(),
+      color: 0x8a63d6, onClick: () => { this.scene.start('Shop', { from: 'Menu' }); },
     });
 
     this.input.keyboard.on('keydown-ENTER', () => { if (!this.helpOpen) this.startGame(); });
     this.events.once('shutdown', () => this.input.keyboard.removeAllListeners());
   }
 
-  soundLabel() { return 'Sound: ' + (PlayerState.data.settings.soundOn ? 'On' : 'Off'); }
-  musicLabel() { return 'Music: ' + (PlayerState.data.settings.musicOn ? 'On' : 'Off'); }
-
-  toggleSound() {
-    PlayerState.data.settings.soundOn = !PlayerState.data.settings.soundOn;
-    PlayerState.save();
-    this.soundBtn.setButtonLabel(this.soundLabel());
-    SFX.refreshMusic();
-  }
-
-  toggleMusic() {
-    PlayerState.data.settings.musicOn = !PlayerState.data.settings.musicOn;
-    PlayerState.save();
-    this.musicBtn.setButtonLabel(this.musicLabel());
-    SFX.init();
-    SFX.startMusic();
-    SFX.refreshMusic();
-  }
-
   startGame() {
     if (this.helpOpen) return;
-    SFX.init();
-    SFX.startMusic();
-    SFX.click();
     const next = PlayerState.data.charPicked ? 'WorldMap' : 'CharSelect';
     this.cameras.main.fadeOut(260, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start(next));
@@ -158,7 +125,6 @@ class MenuScene extends Phaser.Scene {
 
   hideHelp() {
     if (!this.helpOverlay) return;
-    SFX.click();
     this.helpOverlay.destroy();
     this.helpOverlay = null;
     this.helpOpen = false;

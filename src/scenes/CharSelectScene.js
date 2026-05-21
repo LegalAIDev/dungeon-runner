@@ -57,7 +57,6 @@ class CharSelectScene extends Phaser.Scene {
   }
 
   pick(id) {
-    SFX.power();
     PlayerState.unlock('characters', id);
     PlayerState.equip('character', id);
     PlayerState.data.charPicked = true;

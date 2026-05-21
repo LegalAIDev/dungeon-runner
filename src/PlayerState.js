@@ -14,8 +14,9 @@ const PlayerState = (function () {
     return p;
   }
 
-  // DEV MODE: start with unlimited coins/stars for testing
-  const DEV_UNLIMITED = true;
+  // DEV MODE: opt-in via "?dev" in the URL — grants unlimited coins/stars for
+  // testing. Off by default so the real coin/star economy works.
+  const DEV_UNLIMITED = /[?&]dev\b/.test(location.search);
 
   function defaultState() {
     return {
@@ -51,8 +52,6 @@ const PlayerState = (function () {
       },
 
       dailyQuests: { date: null, quests: [], completed: [], challengeDone: false },
-
-      settings: { soundOn: true, musicOn: true },
 
       charPicked: false,                 // has the player chosen a starter?
     };

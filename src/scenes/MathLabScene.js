@@ -148,12 +148,10 @@ class MathLabScene extends Phaser.Scene {
       this.starsEarned += stars;
       this.starsText.setText(String(this.starsEarned));
       this.flash(label, '#36c98d');
-      SFX.star();
     } else {
       this.streak = 0;
       this.flash(chosenIndex < 0 ? 'Time up!  0 ⭐  (no penalty)'
                                  : 'Not quite — 0 ⭐  (no penalty)', '#ff9bb0');
-      SFX.wrong();
     }
 
     this.time.delayedCall(950, () => {
@@ -191,7 +189,6 @@ class MathLabScene extends Phaser.Scene {
     if (this.bestStreak >= 5) DailyQuests.progress('labStreak', 5);
     let challengeBonus = 0;
     if (this.isChallenge) challengeBonus = DailyQuests.completeChallenge();
-    if (challengeBonus) PlayerState.addStars(0);   // already added inside completeChallenge
 
     this.showSummary(perfect, challengeBonus);
   }
@@ -234,23 +231,21 @@ class MathLabScene extends Phaser.Scene {
     c.add(UI.button(this, W / 2 - 130, H / 2 + 172, {
       label: 'Train Again', width: 230, height: 54, fontSize: 21,
       color: UI.COLORS.good,
-      onClick: () => { SFX.click(); this.scene.restart(
+      onClick: () => { this.scene.restart(
         { topic: this.topic, isChallenge: false }); },
     }));
     c.add(UI.button(this, W / 2 + 130, H / 2 + 172, {
       label: 'Back to Shop', width: 230, height: 54, fontSize: 21,
       color: UI.COLORS.accent,
-      onClick: () => { SFX.click(); this.scene.start('Shop',
+      onClick: () => { this.scene.start('Shop',
         { from: 'WorldMap', tab: 'lab' }); },
     }));
 
-    if (perfect) SFX.levelUp(); else SFX.buy();
     c.setAlpha(0);
     this.tweens.add({ targets: c, alpha: 1, duration: 200 });
   }
 
   quit() {
-    SFX.click();
     if (this.starsEarned > 0 && this.phase !== 'summary') {
       PlayerState.addStars(this.starsEarned);
     }

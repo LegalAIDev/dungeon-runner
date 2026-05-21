@@ -31,7 +31,7 @@ class WorldMapScene extends Phaser.Scene {
     /* bottom buttons */
     UI.button(this, W / 2 - 240, 488, {
       label: '🏪 Shop', width: 200, height: 56, fontSize: 22,
-      color: 0x8a63d6, onClick: () => { SFX.click(); this.scene.start('Shop', { from: 'WorldMap' }); },
+      color: 0x8a63d6, onClick: () => { this.scene.start('Shop', { from: 'WorldMap' }); },
     });
     UI.button(this, W / 2, 488, {
       label: '📋 Daily Quests', width: 230, height: 56, fontSize: 21,
@@ -39,7 +39,7 @@ class WorldMapScene extends Phaser.Scene {
     });
     UI.button(this, W / 2 + 240, 488, {
       label: 'Menu', width: 200, height: 56, fontSize: 22,
-      color: UI.COLORS.panelLight, onClick: () => { SFX.click(); this.scene.start('Menu'); },
+      color: UI.COLORS.panelLight, onClick: () => { this.scene.start('Menu'); },
     });
 
     if (this.toastMsg) this.showToast(this.toastMsg);
@@ -103,7 +103,6 @@ class WorldMapScene extends Phaser.Scene {
   openLevelSelect(world, worldIndex) {
     if (this.overlayOpen) return;
     this.overlayOpen = true;
-    SFX.click();
     const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
     const c = this.add.container(0, 0).setDepth(900);
 
@@ -150,7 +149,7 @@ class WorldMapScene extends Phaser.Scene {
     c.add(UI.button(this, W / 2, H / 2 + 146, {
       label: 'Close', width: 180, height: 48, fontSize: 20,
       color: UI.COLORS.panelLight,
-      onClick: () => { SFX.click(); c.destroy(); this.overlayOpen = false; },
+      onClick: () => { c.destroy(); this.overlayOpen = false; },
     }));
 
     c.setAlpha(0);
@@ -169,7 +168,6 @@ class WorldMapScene extends Phaser.Scene {
   }
 
   showGearWarning(world, worldIndex, levelIndex, gear, th, overlay) {
-    SFX.click();
     const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
     const c = this.add.container(0, 0).setDepth(1100);
     c.add(this.add.rectangle(0, 0, W, H, 0x000000, 0.55).setOrigin(0).setInteractive());
@@ -195,7 +193,7 @@ class WorldMapScene extends Phaser.Scene {
     c.add(UI.button(this, W / 2 + 130, H / 2 + 70, {
       label: 'Math Lab →', width: 220, height: 52, fontSize: 19,
       color: UI.COLORS.good,
-      onClick: () => { SFX.click(); this.scene.start('Shop', { from: 'WorldMap', tab: 'lab' }); },
+      onClick: () => { this.scene.start('Shop', { from: 'WorldMap', tab: 'lab' }); },
     }));
 
     c.setAlpha(0);
@@ -204,7 +202,6 @@ class WorldMapScene extends Phaser.Scene {
 
   startLevel(worldId, levelIndex) {
     PlayerState.unlock('worlds', worldId);
-    SFX.click();
     this.cameras.main.fadeOut(240, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
       this.scene.start('Game', { worldId: worldId, levelIndex: levelIndex });
@@ -215,7 +212,6 @@ class WorldMapScene extends Phaser.Scene {
   showQuests() {
     if (this.overlayOpen) return;
     this.overlayOpen = true;
-    SFX.click();
     const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
     const dq = DailyQuests.refresh();
     const c = this.add.container(0, 0).setDepth(900);
@@ -264,7 +260,7 @@ class WorldMapScene extends Phaser.Scene {
     c.add(UI.button(this, W / 2, H / 2 + 162, {
       label: 'Close', width: 180, height: 46, fontSize: 19,
       color: UI.COLORS.panelLight,
-      onClick: () => { SFX.click(); c.destroy(); this.overlayOpen = false; },
+      onClick: () => { c.destroy(); this.overlayOpen = false; },
     }));
 
     c.setAlpha(0);

@@ -7,13 +7,24 @@ class BootScene extends Phaser.Scene {
   constructor() { super('Boot'); }
 
   preload() {
+    /* surface a clear console warning if any asset 404s, instead of
+       silently falling back to procedural art with no clue why */
+    this.load.on('loaderror', (file) => {
+      console.warn('Math Runner: asset failed to load —', file.src);
+    });
+
     /* layered cave backdrop + the level tileset (32x32 tiles) */
     this.load.image('bg1', 'src/sprites/background1.png');
     this.load.image('bg2', 'src/sprites/background2.png');
     this.load.image('bg3', 'src/sprites/background3.png');
     this.load.image('bg4', 'src/sprites/background4a.png');
+    this.load.image('bg4b', 'src/sprites/background4b.png');
     this.load.spritesheet('tiles', 'src/sprites/mainlev_build.png',
       { frameWidth: 32, frameHeight: 32 });
+
+    /* decoration prop sheets — sub-frames are registered in create() */
+    this.load.image('props1', 'src/sprites/props1.png');
+    this.load.image('props2', 'src/sprites/props2.png');
 
     if (!window.ASSET_MANIFEST) return;
     ['characters', 'enemies', 'bosses'].forEach((section) => {
@@ -86,6 +97,7 @@ class BootScene extends Phaser.Scene {
     });
 
     this._buildRealArtAnims();
+    Level.registerPropFrames(this);
 
     this.scene.start('Menu');
   }

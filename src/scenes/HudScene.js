@@ -37,17 +37,18 @@ class HudScene extends Phaser.Scene {
       fontFamily: UI.FONT, fontSize: '21px', color: '#ffd23f', fontStyle: 'bold',
     }).setOrigin(0, 0.5);
 
-    /* combo counter */
-    this.comboText = this.add.text(30, CONFIG.HEIGHT - 40, '', {
+    /* combo counter — centred so it never sits under the touch controls */
+    this.comboText = this.add.text(W / 2, 118, '', {
       fontFamily: UI.FONT, fontSize: '26px', color: '#ffce3a', fontStyle: 'bold',
       stroke: '#3a2150', strokeThickness: 6,
-    }).setOrigin(0, 0.5);
+    }).setOrigin(0.5);
 
-    /* consumable slots */
+    /* consumable slots — a tappable column down the right edge, clear of the
+       bottom-corner touch controls */
     this.slotIcons = [];
     g.consumableSlots.forEach((id, i) => {
-      const x = W - 54 - i * 70;
-      const y = CONFIG.HEIGHT - 44;
+      const x = W - 40;
+      const y = 116 + i * 70;
       UI.panel(this, x, y, 62, 62, UI.COLORS.panel, { alpha: 0.92, radius: 12 });
       const item = findItem(CONSUMABLES, id);
       this.add.text(x, y - 4, this.slotGlyph(item.effect), {
@@ -59,6 +60,12 @@ class HudScene extends Phaser.Scene {
       const qty = this.add.text(x + 24, y + 22, '', {
         fontFamily: UI.FONT, fontSize: '15px', color: '#ffffff', fontStyle: 'bold',
       }).setOrigin(1, 1);
+      this.add.zone(x, y, 62, 62).setInteractive()
+        .on('pointerdown', () => {
+          if (!this.game_.paused && !this.game_.finished) {
+            this.game_.useConsumable(i);
+          }
+        });
       this.slotIcons.push({ id: id, qty: qty });
     });
 
@@ -70,11 +77,63 @@ class HudScene extends Phaser.Scene {
     this.bossName = this.add.text(W / 2, 86, '', {
       fontFamily: UI.FONT, fontSize: '15px', color: '#ffffff', fontStyle: 'bold',
     }).setOrigin(0.5).setVisible(false);
+
+    /* on-screen controls — only built on touch devices */
+    if (this.sys.game.device.input.touch) this.buildTouchControls();
   }
 
   slotGlyph(effect) {
     return { blockHit: '🛡', revive: '✚', magnet: '🧲', speed: '⚡', bomb: '💣' }[effect]
       || '★';
+  }
+
+  /* ---- touch controls --------------------------------------------------- */
+  buildTouchControls() {
+    this.input.addPointer(3);              // track several simultaneous touches
+    const g = this.game_;
+    const c = this.add.container(0, 0).setDepth(900);
+    this.touchControls = c;
+
+    const held = (k) => ({ onDown: () => { g.touch[k] = true; },
+                           onUp:   () => { g.touch[k] = false; } });
+    const tap  = (k) => ({ onDown: () => { g.touch[k] = true; } });
+
+    c.add(this.touchButton(86,  474, 48, '◀', held('left')));
+    c.add(this.touchButton(196, 474, 48, '▶', held('right')));
+    c.add(this.touchButton(876, 470, 54, 'ATK',  tap('attack')));
+    c.add(this.touchButton(762, 486, 46, 'JUMP', tap('jump')));
+    c.add(this.touchButton(902, 352, 34, 'HVY',  tap('heavy')));
+    c.add(this.touchButton(792, 360, 34, 'ROLL', tap('dodge')));
+    /* pause — opens the pause menu, whose Resume button closes it again */
+    c.add(this.touchButton(724, 32, 26, 'II', { onDown: () => g.togglePause() }));
+  }
+
+  touchButton(x, y, r, label, opts) {
+    const cont = this.add.container(x, y);
+    const gfx = this.add.graphics();
+    const paint = (pressed) => {
+      gfx.clear();
+      gfx.fillStyle(0x000000, 0.4);  gfx.fillCircle(2, 4, r);
+      gfx.fillStyle(pressed ? 0xffd23f : 0x3b2f72, pressed ? 0.92 : 0.5);
+      gfx.fillCircle(0, 0, r);
+      gfx.lineStyle(3, 0xffffff, pressed ? 0.95 : 0.45);
+      gfx.strokeCircle(0, 0, r);
+    };
+    paint(false);
+    const txt = this.add.text(0, 0, label, {
+      fontFamily: UI.FONT, fontStyle: 'bold', color: '#ffffff',
+      fontSize: Math.round(label.length > 1 ? r * 0.6 : r * 0.95) + 'px',
+    }).setOrigin(0.5);
+    cont.add([gfx, txt]);
+    cont.setInteractive(new Phaser.Geom.Circle(0, 0, r),
+                        Phaser.Geom.Circle.Contains);
+    const press   = () => { paint(true);  if (opts.onDown) opts.onDown(); };
+    const release = () => { paint(false); if (opts.onUp)   opts.onUp(); };
+    cont.on('pointerdown', press);
+    cont.on('pointerup', release);
+    cont.on('pointerout', release);
+    cont.on('pointerupoutside', release);
+    return cont;
   }
 
   update() {
@@ -114,6 +173,14 @@ class HudScene extends Phaser.Scene {
       this.bossBarBg.setVisible(false);
       this.bossBarFg.setVisible(false);
       this.bossName.setVisible(false);
+    }
+
+    /* hide the touch pad while paused / finished, and drop any held
+       movement so the player does not keep walking after a pause */
+    if (this.touchControls) {
+      const show = !g.paused && !g.finished;
+      this.touchControls.setVisible(show);
+      if (!show) { g.touch.left = false; g.touch.right = false; }
     }
   }
 }

@@ -53,6 +53,7 @@ const BIOMES = [
     hillFar: 0x6f9fd0, hillNear: 0x4f7bb0,
     ground: 0x9ec8e8, groundDark: 0x6c98c2, groundEdge: 0xd6ecff,
     caveTint: 0xbcd6f5,       // pale-blue ice cave
+    nearLayer: 'bg4b',        // water-pool cave floor → reads as a frozen lake
   },
   {
     key: 'castle', name: 'Dragon Castle', night: true,

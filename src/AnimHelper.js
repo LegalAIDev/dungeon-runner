@@ -68,7 +68,8 @@ const AnimHelper = {
     }
 
     /* Graceful fallbacks when the exact state's anim wasn't loaded */
-    const fallback = { dodge: 'walk', jump: 'idle', hurt: 'idle', death: 'hurt' }[state];
+    const fallback = { walk: 'idle', dodge: 'walk', jump: 'idle',
+                       hurt: 'idle', death: 'hurt' }[state];
     if (fallback) {
       const fbKey = 'art:' + sprite._artSection + ':' + sprite._artId + ':' + fallback;
       if (sceneAnims.exists(fbKey)) {
@@ -90,7 +91,9 @@ const AnimHelper = {
         sprite.play('hero-walk');
       } else {
         sprite.anims.stop();
-        sprite.setTexture('hero_' + state);
+        /* procedural heroes have no 'death' texture — fall back to 'hurt' */
+        const tex = 'hero_' + state;
+        sprite.setTexture(sprite.scene.textures.exists(tex) ? tex : 'hero_hurt');
       }
     } else {
       /* Enemies / bosses: two-texture system */

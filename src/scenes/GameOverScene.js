@@ -84,11 +84,9 @@ class GameOverScene extends Phaser.Scene {
     btns.forEach((b) => {
       UI.button(this, bx, 492, {
         label: b[0], width: 228, height: 54, fontSize: 20, color: b[1],
-        onClick: () => { SFX.click(); b[2](); },
+        onClick: () => { b[2](); },
       });
       bx += step;
     });
-
-    if (win) SFX.levelUp(); else SFX.gameOver();
   }
 }

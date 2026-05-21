@@ -36,9 +36,16 @@ const MathProblems = (function () {
     }
     let pad = 1;
     while (out.length < 3) {
-      const guess = isNaN(Number(answer))
-        ? answer + ' '.repeat(pad)
-        : String(Number(answer) + pad);
+      let guess;
+      if (!isNaN(Number(answer))) {
+        guess = String(Number(answer) + pad);
+      } else {
+        /* non-numeric answer (e.g. a fraction): build a visibly distinct
+           distractor — never pad with invisible trailing spaces */
+        const frac = /^(\d+)\/(\d+)$/.exec(answer);
+        guess = frac ? `${Number(frac[1]) + pad}/${frac[2]}`
+                     : answer + ' (' + pad + ')';
+      }
       if (!seen.has(guess)) { seen.add(guess); out.push(guess); }
       pad++;
     }
@@ -160,12 +167,14 @@ const MathProblems = (function () {
   }
   function gOrderOfOps() {
     const form = pick(['a+b*c', 'a*b+c', '(a+b)*c', 'a*b-c']);
-    const a = randInt(2, 9), b = randInt(2, 9), c = randInt(2, 9);
+    const a = randInt(2, 9), b = randInt(2, 9);
+    let c = randInt(2, 9);
     let q, ans, trap;
     if (form === 'a+b*c') { q = `${a} + ${b} × ${c}`; ans = a + b * c; trap = (a + b) * c; }
     else if (form === 'a*b+c') { q = `${a} × ${b} + ${c}`; ans = a * b + c; trap = a * (b + c); }
     else if (form === '(a+b)*c') { q = `(${a} + ${b}) × ${c}`; ans = (a + b) * c; trap = a + b * c; }
-    else { q = `${a} × ${b} − ${c}`; ans = a * b - c; trap = a * (b - c); }
+    else { c = randInt(2, Math.min(9, a * b - 1));     // keep a × b − c positive
+           q = `${a} × ${b} − ${c}`; ans = a * b - c; trap = a * (b - c); }
     const distract = [];
     if (trap !== ans && trap >= 0) distract.push(String(trap));
     intChoices(ans).forEach((x) => distract.push(x));
@@ -224,11 +233,12 @@ const MathProblems = (function () {
 
   /* generators grouped by Math Lab training topic */
   const TOPIC_GENS = {
-    addSub:   [gAddition, gSubtraction, gDecimalAddSub],
+    addSub:   [gAddition, gSubtraction, gDecimalAddSub, gRounding],
     multiply: [gMultFact, gMult2, gDecimalMul],
     divFrac:  [gDivision, gRemainder, gFractionLike, gFractionUnlike],
     mixed:    [gAddition, gSubtraction, gMultFact, gMult2, gDivision, gRemainder,
-               gFractionLike, gFractionUnlike, gOrderOfOps, gDecimalMul, gWord],
+               gFractionLike, gFractionUnlike, gOrderOfOps, gDecimalMul, gWord,
+               gRounding, gArea, gPerimeter],
   };
 
   /* turns a raw generated problem into the Math Lab shape (with correctIndex) */

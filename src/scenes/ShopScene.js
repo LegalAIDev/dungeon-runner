@@ -54,7 +54,7 @@ class ShopScene extends Phaser.Scene {
     UI.button(this, W / 2, CONFIG.HEIGHT - 30, {
       label: '← Back', width: 200, height: 44, fontSize: 19,
       color: UI.COLORS.panelLight,
-      onClick: () => { SFX.click(); this.scene.start(this.fromScene); },
+      onClick: () => { this.scene.start(this.fromScene); },
     });
 
     this.content = this.add.container(0, 0);
@@ -67,7 +67,6 @@ class ShopScene extends Phaser.Scene {
   }
 
   switchTab(tab) {
-    SFX.click();
     this.tab = tab;
     Object.keys(this.tabBtns).forEach((k) => {
       this.tabBtns[k].setButtonColor(k === tab ? UI.COLORS.accent : UI.COLORS.panelLight);
@@ -152,7 +151,6 @@ class ShopScene extends Phaser.Scene {
   }
 
   startLab(topic, isChallenge) {
-    SFX.click();
     this.scene.start('MathLab', { topic: topic, isChallenge: isChallenge });
   }
 
@@ -303,12 +301,10 @@ class ShopScene extends Phaser.Scene {
       PlayerState.unlock(unlockKind, item.id);
       PlayerState.equip(kind, item.id);
     }
-    SFX.buy();
     this.switchTab(this.tab);
   }
 
   equipItem(slot, item) {
-    SFX.power();
     PlayerState.equip(slot, item.id);
     this.switchTab(this.tab);
   }

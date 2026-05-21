@@ -44,6 +44,11 @@ class GameScene extends Phaser.Scene {
     this.shieldCharges = 0;
     this.boss = null;
 
+    /* on-screen control state, written by the HudScene touch buttons.
+       left/right are held; the rest are one-shot flags cleared each frame. */
+    this.touch = { left: false, right: false, jump: false,
+                   attack: false, heavy: false, dodge: false };
+
     /* scenery */
     this.bg = UI.scenicBackground(this, this.biome);
     this.cameras.main.fadeIn(280, 0, 0, 0);
@@ -61,6 +66,7 @@ class GameScene extends Phaser.Scene {
     /* collidable cave platforms — the main floor plus jump-up ledges */
     this.platforms = Level.buildPlatforms(this.levelLength);
     Level.render(this, this.platforms, this.biome.caveTint);
+    Level.renderDecor(this, this.platforms, this.biome, this.worldId);
 
     const cam = this.cameras.main;
     cam.setBounds(0, 0, this.levelLength, CONFIG.HEIGHT);
@@ -211,7 +217,7 @@ class GameScene extends Phaser.Scene {
 
   /* ---- main loop -------------------------------------------------------- */
   update(time, delta) {
-    if (this.paused || this.finished) return;
+    if (this.paused || this.finished) { this.clearTouchActions(); return; }
 
     const dt = Math.min(delta / 1000, 0.04);
     this.clock += dt * 1000;
@@ -230,6 +236,14 @@ class GameScene extends Phaser.Scene {
         this.enemies.length === 0 && this.enemiesToSpawn <= 0) {
       this.onWaveCleared();
     }
+
+    this.clearTouchActions();
+  }
+
+  /* one-shot touch flags are consumed every frame so a tap fires once */
+  clearTouchActions() {
+    const t = this.touch;
+    t.jump = t.attack = t.heavy = t.dodge = false;
   }
 
   scrollBackground(dt) {
@@ -258,8 +272,8 @@ class GameScene extends Phaser.Scene {
       p.kbVx *= 0.86;
     } else if (!frozen && !p.attack) {
       let mx = 0;
-      if (this.cursors.left.isDown)  mx -= 1;
-      if (this.cursors.right.isDown) mx += 1;
+      if (this.cursors.left.isDown  || this.touch.left)  mx -= 1;
+      if (this.cursors.right.isDown || this.touch.right) mx += 1;
       p.x += mx * speed * dt;
       if (mx !== 0) p.facing = mx;
     }
@@ -275,7 +289,6 @@ class GameScene extends Phaser.Scene {
         const surf = Level.landingY(this.platforms, p.x, prevFootY, p.y, 20);
         if (surf !== null) {
           p.y = surf; p.onGround = true; p.vy = 0;
-          SFX.land();
         }
       }
       if (p.y > CONFIG.GROUND_Y) {
@@ -314,20 +327,23 @@ class GameScene extends Phaser.Scene {
 
   handleInput(now, dodging) {
     const p = this.player;
-    if ((Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
-         Phaser.Input.Keyboard.JustDown(this.cursors.space)) &&
-        p.onGround && !p.attack) {
+    const t = this.touch;
+    const jump = Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
+                 Phaser.Input.Keyboard.JustDown(this.cursors.space) || t.jump;
+    if (jump && p.onGround && !p.attack) {
       p.onGround = false;
       p.vy = -CONFIG.JUMP_VELOCITY;
-      SFX.jump();
     }
-    if (Phaser.Input.Keyboard.JustDown(this.cursors.down) &&
+    if ((Phaser.Input.Keyboard.JustDown(this.cursors.down) || t.dodge) &&
         !dodging && p.onGround && now > p.dodgeUntil + 250 && !p.attack) {
       this.startDodge(now);
     }
     if (!p.attack && p.onGround && now > p.attackCooldownUntil) {
-      if (Phaser.Input.Keyboard.JustDown(this.keys.Z)) this.startAttack('light', now);
-      else if (Phaser.Input.Keyboard.JustDown(this.keys.X)) this.startAttack('heavy', now);
+      if (Phaser.Input.Keyboard.JustDown(this.keys.Z) || t.attack) {
+        this.startAttack('light', now);
+      } else if (Phaser.Input.Keyboard.JustDown(this.keys.X) || t.heavy) {
+        this.startAttack('heavy', now);
+      }
     }
   }
 
@@ -335,7 +351,6 @@ class GameScene extends Phaser.Scene {
     const p = this.player;
     p.attack = { type: type, start: now, hitDone: false };
     p.attackCooldownUntil = now + (type === 'heavy' ? 520 : 320);
-    SFX.swing();
   }
 
   startDodge(now) {
@@ -346,7 +361,6 @@ class GameScene extends Phaser.Scene {
     p.dodgeDir = dir;
     p.dodgeUntil = now + 360;
     p.invulnUntil = now + 400;
-    SFX.land();
   }
 
   setPlayerPose(now, hurt, dodging) {
@@ -356,7 +370,8 @@ class GameScene extends Phaser.Scene {
     else if (dodging) pose = 'dodge';
     else if (!p.onGround) pose = 'jump';
     else if (p.attack) pose = 'attack';
-    else if (this.cursors.left.isDown || this.cursors.right.isDown) pose = 'walk';
+    else if (this.cursors.left.isDown || this.cursors.right.isDown ||
+             this.touch.left || this.touch.right) pose = 'walk';
 
     if (pose !== p.pose) {
       p.pose = pose;
@@ -446,16 +461,14 @@ class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: e, scaleX: 1.18, scaleY: 0.86, duration: 60, yoyo: true });
 
     if (e.hp <= 0) this.killEnemy(e);
-    else SFX.hit();
   }
 
   killEnemy(e) {
     if (!e.alive) return;
     e.alive = false;
-    SFX.enemyDown();
+    AnimHelper.playState(e, 'death');
     this.killCount++;
     this.combo++;
-    if (this.combo === 5 || this.combo === 10) SFX.combo();
     DailyQuests.progress('kill20', 1);
 
     let coins = this.coinValue(e);
@@ -565,7 +578,8 @@ class GameScene extends Phaser.Scene {
     }
 
     const atkPose = e.state === 'windup' || e.state === 'strike';
-    AnimHelper.playState(e, atkPose ? 'attack' : 'idle');
+    AnimHelper.playState(e, atkPose ? 'attack'
+                                    : (e.state === 'chase' ? 'walk' : 'idle'));
     if (e.state === 'windup') e.setTint(0xffaaaa);
     else if (e.enraged) e.setTint(0xff7a6a);
     else if (frozen) e.setTint(0x9fd6ff);
@@ -662,13 +676,11 @@ class GameScene extends Phaser.Scene {
     if (this.shieldCharges > 0) {
       this.shieldCharges--;
       this.floatText(p.x, p.y - 96, 'BLOCKED', '#9bd0ff', 20);
-      SFX.shieldPop();
       p.invulnUntil = now + 500;
       return;
     }
     if (this.armor.deflect && Math.random() < this.armor.deflect) {
       this.floatText(p.x, p.y - 96, 'DEFLECT', '#9bd0ff', 18);
-      SFX.shieldPop();
       p.invulnUntil = now + 400;
       return;
     }
@@ -677,7 +689,6 @@ class GameScene extends Phaser.Scene {
     p.hp -= dmg;
     this.floatText(p.x, p.y - 100, '-' + dmg, '#ff6a7e', 24);
     this.hitSpark(p.x, p.y - 50);
-    SFX.hit();
     this.cameras.main.shake(120, 0.012);
     this.doHitStop();
 
@@ -705,12 +716,10 @@ class GameScene extends Phaser.Scene {
       p.invulnUntil = this.clock + 1800;
       p.hurtUntil = 0;
       this.flashBanner('REVIVED!');
-      SFX.power();
       return;
     }
     this.finished = true;
-    SFX.gameOver();
-    AnimHelper.playState(this.player, 'hurt');
+    AnimHelper.playState(this.player, 'death');
     this.cameras.main.fadeOut(600, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
       this.scene.stop('Hud');
@@ -724,10 +733,16 @@ class GameScene extends Phaser.Scene {
   /* ---- projectiles & coins --------------------------------------------- */
   updateProjectiles(dt) {
     const p = this.player;
+    const cam = this.cameras.main;
     this.projectiles = this.projectiles.filter((b) => {
       b.x += b.vx * dt;
       b.angle += 12;
-      if (b.x < -60 || b.x > CONFIG.WIDTH + 60) { b.destroy(); return false; }
+      /* cull against the camera in world space — the level is far wider than
+         the viewport, so culling by CONFIG.WIDTH would kill every shot once
+         the camera has scrolled past the first screen */
+      if (b.x < cam.scrollX - 80 || b.x > cam.scrollX + CONFIG.WIDTH + 80) {
+        b.destroy(); return false;
+      }
 
       if (b.fromPlayer) {
         for (let i = 0; i < this.enemies.length; i++) {
@@ -788,7 +803,6 @@ class GameScene extends Phaser.Scene {
     const gain = Math.max(1, Math.round(c.value));
     this.runCoins += gain;
     PlayerState.addCoins(gain);
-    SFX.coin();
     const cam = this.cameras.main;
     this.tweens.add({ targets: c, x: cam.scrollX + CONFIG.WIDTH - 80,
       y: cam.scrollY + 36, scale: 0.4, duration: 360, ease: 'Cubic.in',
@@ -801,7 +815,6 @@ class GameScene extends Phaser.Scene {
     if (!id || PlayerState.consumableQty(id) <= 0) return;
     PlayerState.useConsumable(id);
     const item = findItem(CONSUMABLES, id);
-    SFX.power();
     if (item.effect === 'blockHit') {
       this.shieldCharges++;
       this.floatText(this.player.x, this.player.y - 100, '+Shield', '#9bd0ff', 20);
@@ -830,7 +843,6 @@ class GameScene extends Phaser.Scene {
       this.floatText(this.cameras.main.scrollX + CONFIG.WIDTH / 2, 210,
         'PERFECT WAVE  +100', '#ffce3a', 30);
       DailyQuests.progress('perfectWave', 1);
-      SFX.levelUp();
     }
     this.time.delayedCall(900, () => { this.waveClearing = false; this.nextWave(); });
   }
@@ -838,7 +850,6 @@ class GameScene extends Phaser.Scene {
   levelComplete() {
     if (this.finished) return;
     this.finished = true;
-    SFX.levelUp();
 
     let bonus = this.isBossLevel
       ? (PlayerState.isLevelCleared(this.worldId, this.levelIndex) ? 200 : 400)
@@ -936,6 +947,5 @@ class GameScene extends Phaser.Scene {
   closePause() {
     if (this.pauseOverlay) { this.pauseOverlay.destroy(); this.pauseOverlay = null; }
     this.paused = false;
-    SFX.click();
   }
 }

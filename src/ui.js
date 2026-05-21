@@ -66,7 +66,7 @@ const UI = {
       { key: 'bg1', parallax: 0.08, depth: -100 },
       { key: 'bg2', parallax: 0.20, depth: -99  },
       { key: 'bg3', parallax: 0.42, depth: -98  },
-      { key: 'bg4', parallax: 0.68, depth: -97  },
+      { key: biome.nearLayer || 'bg4', parallax: 0.68, depth: -97 },
     ];
 
     const layers = defs.map((d) => {
@@ -136,7 +136,6 @@ const UI = {
     container.on('pointerup', () => {
       if (!enabled) return;
       paint(hover, 2);
-      SFX.click();
       scene.tweens.add({ targets: container, scaleX: 0.93, scaleY: 0.93,
         duration: 70, yoyo: true });
       if (opts.onClick) opts.onClick();
