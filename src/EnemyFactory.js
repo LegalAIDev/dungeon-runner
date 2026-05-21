@@ -31,6 +31,22 @@ const EnemyFactory = (function () {
       key: 'shadow', name: 'Shadow Knight', hp: 100, damage: 22, speed: 138,
       range: 58, w: 72, h: 90, attackWindup: 360, behaviour: 'guard',
     },
+    skeleton: {
+      key: 'skeleton', name: 'Skeleton', hp: 30, damage: 8, speed: 110,
+      range: 52, w: 56, h: 72, attackWindup: 340, behaviour: 'rush',
+    },
+    flying_eye: {
+      key: 'flying_eye', name: 'Flying Eye', hp: 25, damage: 10, speed: 80,
+      range: 400, w: 58, h: 58, attackWindup: 580, behaviour: 'ranged',
+    },
+    mushroom: {
+      key: 'mushroom', name: 'Mushroom', hp: 60, damage: 13, speed: 50,
+      range: 54, w: 64, h: 72, attackWindup: 620, behaviour: 'telegraph',
+    },
+    fire_worm: {
+      key: 'fire_worm', name: 'Fire Worm', hp: 45, damage: 11, speed: 90,
+      range: 60, w: 64, h: 60, attackWindup: 400, behaviour: 'rush',
+    },
   };
 
   /* One boss per world. `phases` describes the special mechanic. */

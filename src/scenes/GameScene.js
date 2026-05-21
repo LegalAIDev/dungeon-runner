@@ -82,7 +82,8 @@ class GameScene extends Phaser.Scene {
     const tints = { fighter: 0xffffff, ninja: 0x8186b8, wizard: 0xc79ff0,
                     knight: 0xcfd6ff, archer: 0xa9e6b8 };
     const p = this.add.sprite(250, CONFIG.GROUND_Y, 'hero_idle').setOrigin(0.5, 1);
-    p.setTint(tints[this.character.id] || 0xffffff);
+    AnimHelper.initSprite(this, p, 'characters', this.character.id, 'hero');
+    if (!p._hasArt) p.setTint(tints[this.character.id] || 0xffffff);
     p.shadow = this.add.image(250, CONFIG.GROUND_Y + 2, 'shadowblob')
       .setOrigin(0.5).setScale(0.85).setDepth(1);
 
@@ -188,6 +189,7 @@ class GameScene extends Phaser.Scene {
     e.enraged = false;
     e.alive = true;
     e.isBoss = !!cfg.isBoss;
+    AnimHelper.initSprite(this, e, e.isBoss ? 'bosses' : 'enemies', cfg.key, texture);
     e.shadow = this.add.image(x, CONFIG.GROUND_Y + 2, 'shadowblob')
       .setOrigin(0.5).setScale(e.isBoss ? 1.7 : 0.9).setDepth(1);
     if (!e.isBoss) {
@@ -344,8 +346,7 @@ class GameScene extends Phaser.Scene {
 
     if (pose !== p.pose) {
       p.pose = pose;
-      if (pose === 'walk') p.play('hero-walk');
-      else { p.anims.stop(); p.setTexture('hero_' + pose); }
+      AnimHelper.playState(p, pose);
     }
     p.setAlpha(now < p.invulnUntil && !dodging ? 0.6 : 1);
   }
@@ -405,15 +406,15 @@ class GameScene extends Phaser.Scene {
     if (e.behaviour === 'guard' && type === 'light' && !this.weapon.pierces &&
         !e.guardBroken) {
       dmg *= 0.18;
-      this.floatText(e.x, e.y - e.height - 6, 'GUARD', '#9bd0ff', 18);
+      this.floatText(e.x, e.y - e.displayHeight - 6, 'GUARD', '#9bd0ff', 18);
     } else if (e.behaviour === 'guard' && type === 'heavy') {
       e.guardBroken = true;
     }
     dmg = Math.max(1, Math.round(dmg));
     e.hp -= dmg;
-    this.floatText(e.x + Phaser.Math.Between(-10, 10), e.y - e.height * 0.7,
+    this.floatText(e.x + Phaser.Math.Between(-10, 10), e.y - e.displayHeight * 0.7,
       (crit ? '★' : '') + dmg, crit ? '#ffce3a' : '#ffffff', crit ? 26 : 21);
-    this.hitSpark(e.x, e.y - e.height * 0.5);
+    this.hitSpark(e.x, e.y - e.displayHeight * 0.5);
     this.doHitStop();
 
     /* Light attacks only flinch (visual) — the enemy keeps advancing.
@@ -489,7 +490,7 @@ class GameScene extends Phaser.Scene {
   updateEnemy(e, dt, now) {
     const p = this.player;
     e.facing = p.x >= e.x ? 1 : -1;
-    e.setFlipX(e.facing > 0);
+    e.setFlipX(e._facingRight ? e.facing < 0 : e.facing > 0);
     const dist = Math.abs(p.x - e.x);
 
     if (Math.abs(e.kbVx) > 4) {
@@ -531,7 +532,7 @@ class GameScene extends Phaser.Scene {
     }
 
     const atkPose = e.state === 'windup' || e.state === 'strike';
-    e.setTexture(e.baseTexture + (atkPose ? '_atk' : ''));
+    AnimHelper.playState(e, atkPose ? 'attack' : 'idle');
     if (e.state === 'windup') e.setTint(0xffaaaa);
     else if (e.enraged) e.setTint(0xff7a6a);
     else if (frozen) e.setTint(0x9fd6ff);
@@ -540,7 +541,7 @@ class GameScene extends Phaser.Scene {
     e.shadow.x = e.x;
     e.setDepth(e.y);
     if (e.hpBg) {
-      const top = e.y - e.height - 12;
+      const top = e.y - e.displayHeight - 12;
       e.hpBg.x = e.x; e.hpBg.y = top;
       e.hpFg.x = e.x - 22; e.hpFg.y = top;
       e.hpFg.width = 44 * Math.max(0, e.hp / e.maxHp);
@@ -586,7 +587,7 @@ class GameScene extends Phaser.Scene {
 
   castEnemyBolt(e) {
     const p = this.player;
-    const b = this.add.image(e.x + e.facing * 20, e.y - e.height * 0.55, 'bolt')
+    const b = this.add.image(e.x + e.facing * 20, e.y - e.displayHeight * 0.55, 'bolt')
       .setTint(0xc77aff).setDepth(e.y + 1).setScale(1.2);
     b.vx = (p.x >= e.x ? 1 : -1) * 360;
     b.dmg = e.dmg;
@@ -674,8 +675,7 @@ class GameScene extends Phaser.Scene {
     }
     this.finished = true;
     SFX.gameOver();
-    p.anims.stop();
-    p.setTexture('hero_hurt');
+    AnimHelper.playState(this.player, 'hurt');
     this.cameras.main.fadeOut(600, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
       this.scene.stop('Hud');
@@ -699,7 +699,7 @@ class GameScene extends Phaser.Scene {
           const e = this.enemies[i];
           if (e.alive && b.hitSet.indexOf(e) === -1 &&
               Math.abs(e.x - b.x) < 40 &&
-              Math.abs((e.y - e.height * 0.5) - b.y) < e.height * 0.6) {
+              Math.abs((e.y - e.displayHeight * 0.5) - b.y) < e.displayHeight * 0.6) {
             b.hitSet.push(e);
             this.damageEnemy(e, b.dmg, 'light', b.crit);
             if (!b.pierce) { b.destroy(); return false; }

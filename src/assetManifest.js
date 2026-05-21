@@ -1,0 +1,229 @@
+/* ============================================================================
+   assetManifest.js — maps game entities to real sprite files.
+   Every entry is optional: missing or failed-to-load files fall back to the
+   procedural art generated in BootScene with no crash or code change needed.
+
+   frameWidth / frameHeight: size of a single cell in the horizontal strip.
+   displayScale: multiplier applied to the sprite so it fits the game canvas.
+   anchorY: fractional Y where the character's feet sit (0 = top, 1 = bottom).
+             Adjust if the sprite floats above or sinks into the ground.
+   ========================================================================== */
+
+const ASSET_MANIFEST = {
+
+  characters: {
+
+    fighter: {
+      frameWidth: 200, frameHeight: 200,
+      displayScale: 0.55, anchorY: 0.92,
+      anims: {
+        idle:   { file: 'src/sprites/Martial Hero/Sprites/Idle.png',    frames: 8, fps: 8,  loop: true  },
+        walk:   { file: 'src/sprites/Martial Hero/Sprites/Run.png',     frames: 8, fps: 12, loop: true  },
+        jump:   { file: 'src/sprites/Martial Hero/Sprites/Jump.png',    frames: 2, fps: 8,  loop: false },
+        attack: { file: 'src/sprites/Martial Hero/Sprites/Attack1.png', frames: 6, fps: 14, loop: false },
+        hurt:   { file: 'src/sprites/Martial Hero/Sprites/Take Hit.png',frames: 4, fps: 10, loop: false },
+        dodge:  { file: 'src/sprites/Martial Hero/Sprites/Run.png',     frames: 8, fps: 20, loop: false },
+      },
+    },
+
+    ninja: {
+      frameWidth: 200, frameHeight: 200,
+      displayScale: 0.55, anchorY: 0.92,
+      anims: {
+        idle:   { file: 'src/sprites/Martial Hero 2/Sprites/Idle.png',     frames: 4, fps: 6,  loop: true  },
+        walk:   { file: 'src/sprites/Martial Hero 2/Sprites/Run.png',      frames: 8, fps: 12, loop: true  },
+        jump:   { file: 'src/sprites/Martial Hero 2/Sprites/Jump.png',     frames: 2, fps: 8,  loop: false },
+        attack: { file: 'src/sprites/Martial Hero 2/Sprites/Attack1.png',  frames: 4, fps: 14, loop: false },
+        hurt:   { file: 'src/sprites/Martial Hero 2/Sprites/Take hit.png', frames: 3, fps: 10, loop: false },
+        dodge:  { file: 'src/sprites/Martial Hero 2/Sprites/Run.png',      frames: 8, fps: 22, loop: false },
+      },
+    },
+
+    wizard: {
+      frameWidth: 150, frameHeight: 150,
+      displayScale: 0.70, anchorY: 0.92,
+      anims: {
+        idle:   { file: 'src/sprites/Evil Wizard/Sprites/Idle.png',    frames: 8, fps: 8,  loop: true  },
+        walk:   { file: 'src/sprites/Evil Wizard/Sprites/Move.png',    frames: 8, fps: 12, loop: true  },
+        jump:   { file: 'src/sprites/Evil Wizard/Sprites/Move.png',    frames: 8, fps: 12, loop: false },
+        attack: { file: 'src/sprites/Evil Wizard/Sprites/Attack.png',  frames: 8, fps: 14, loop: false },
+        hurt:   { file: 'src/sprites/Evil Wizard/Sprites/Take Hit.png',frames: 4, fps: 10, loop: false },
+        dodge:  { file: 'src/sprites/Evil Wizard/Sprites/Move.png',    frames: 8, fps: 22, loop: false },
+      },
+    },
+
+    knight: {
+      frameWidth: 140, frameHeight: 140,
+      displayScale: 0.76, anchorY: 0.92,
+      anims: {
+        idle:   { file: 'src/sprites/Hero Knight 2/Sprites/Idle.png',    frames: 11, fps: 8,  loop: true  },
+        walk:   { file: 'src/sprites/Hero Knight 2/Sprites/Run.png',     frames: 8,  fps: 12, loop: true  },
+        jump:   { file: 'src/sprites/Hero Knight 2/Sprites/Jump.png',    frames: 4,  fps: 10, loop: false },
+        attack: { file: 'src/sprites/Hero Knight 2/Sprites/Attack.png',  frames: 6,  fps: 14, loop: false },
+        hurt:   { file: 'src/sprites/Hero Knight 2/Sprites/Take Hit.png',frames: 4,  fps: 10, loop: false },
+        dodge:  { file: 'src/sprites/Hero Knight 2/Sprites/Dash.png',    frames: 4,  fps: 18, loop: false },
+      },
+    },
+
+    archer: {
+      frameWidth: 150, frameHeight: 150,
+      displayScale: 0.70, anchorY: 0.92,
+      anims: {
+        idle:   { file: 'src/sprites/Huntress/Sprites/Idle.png',    frames: 8, fps: 8,  loop: true  },
+        walk:   { file: 'src/sprites/Huntress/Sprites/Run.png',     frames: 8, fps: 12, loop: true  },
+        jump:   { file: 'src/sprites/Huntress/Sprites/Jump.png',    frames: 2, fps: 8,  loop: false },
+        attack: { file: 'src/sprites/Huntress/Sprites/Attack1.png', frames: 5, fps: 14, loop: false },
+        hurt:   { file: 'src/sprites/Huntress/Sprites/Take hit.png',frames: 3, fps: 10, loop: false },
+        dodge:  { file: 'src/sprites/Huntress/Sprites/Run.png',     frames: 8, fps: 22, loop: false },
+      },
+    },
+
+    warrior: {
+      frameWidth: 135, frameHeight: 135,
+      displayScale: 0.80, anchorY: 0.92,
+      anims: {
+        idle:   { file: 'src/sprites/Medieval Warrior Pack 3/Sprites/Idle.png',    frames: 10, fps: 8,  loop: true  },
+        walk:   { file: 'src/sprites/Medieval Warrior Pack 3/Sprites/Run.png',     frames: 6,  fps: 12, loop: true  },
+        jump:   { file: 'src/sprites/Medieval Warrior Pack 3/Sprites/Jump.png',    frames: 2,  fps: 8,  loop: false },
+        attack: { file: 'src/sprites/Medieval Warrior Pack 3/Sprites/Attack1.png', frames: 4,  fps: 14, loop: false },
+        hurt:   { file: 'src/sprites/Medieval Warrior Pack 3/Sprites/Get Hit.png', frames: 3,  fps: 10, loop: false },
+        dodge:  { file: 'src/sprites/Medieval Warrior Pack 3/Sprites/Run.png',     frames: 6,  fps: 22, loop: false },
+      },
+    },
+
+    king: {
+      frameWidth: 160, frameHeight: 111,
+      displayScale: 0.95, anchorY: 0.91,
+      anims: {
+        idle:   { file: 'src/sprites/Medieval King Pack 2/Sprites/Idle.png',    frames: 8, fps: 8,  loop: true  },
+        walk:   { file: 'src/sprites/Medieval King Pack 2/Sprites/Run.png',     frames: 8, fps: 12, loop: true  },
+        jump:   { file: 'src/sprites/Medieval King Pack 2/Sprites/Jump.png',    frames: 2, fps: 8,  loop: false },
+        attack: { file: 'src/sprites/Medieval King Pack 2/Sprites/Attack1.png', frames: 4, fps: 14, loop: false },
+        hurt:   { file: 'src/sprites/Medieval King Pack 2/Sprites/Take Hit.png',frames: 4, fps: 10, loop: false },
+        dodge:  { file: 'src/sprites/Medieval King Pack 2/Sprites/Run.png',     frames: 8, fps: 22, loop: false },
+      },
+    },
+
+    arcmage: {
+      frameWidth: 231, frameHeight: 190,
+      displayScale: 0.56, anchorY: 0.92,
+      anims: {
+        idle:   { file: 'src/sprites/Wizard Pack/Idle.png',    frames: 6, fps: 8,  loop: true  },
+        walk:   { file: 'src/sprites/Wizard Pack/Run.png',     frames: 8, fps: 12, loop: true  },
+        jump:   { file: 'src/sprites/Wizard Pack/Jump.png',    frames: 2, fps: 8,  loop: false },
+        attack: { file: 'src/sprites/Wizard Pack/Attack1.png', frames: 8, fps: 14, loop: false },
+        hurt:   { file: 'src/sprites/Wizard Pack/Hit.png',     frames: 4, fps: 10, loop: false },
+        dodge:  { file: 'src/sprites/Wizard Pack/Run.png',     frames: 8, fps: 22, loop: false },
+      },
+    },
+
+    ranger: {
+      frameWidth: 100, frameHeight: 100,
+      displayScale: 1.05, anchorY: 0.90,
+      anims: {
+        idle:   { file: 'src/sprites/Huntress 2/Sprites/Character/Idle.png',    frames: 10, fps: 8,  loop: true  },
+        walk:   { file: 'src/sprites/Huntress 2/Sprites/Character/Run.png',     frames: 8,  fps: 12, loop: true  },
+        jump:   { file: 'src/sprites/Huntress 2/Sprites/Character/Jump.png',    frames: 2,  fps: 8,  loop: false },
+        attack: { file: 'src/sprites/Huntress 2/Sprites/Character/Attack.png',  frames: 6,  fps: 14, loop: false },
+        hurt:   { file: 'src/sprites/Huntress 2/Sprites/Character/Get Hit.png', frames: 3,  fps: 10, loop: false },
+        dodge:  { file: 'src/sprites/Huntress 2/Sprites/Character/Run.png',     frames: 8,  fps: 22, loop: false },
+      },
+    },
+
+    berserker: {
+      frameWidth: 162, frameHeight: 162,
+      displayScale: 0.66, anchorY: 0.92,
+      anims: {
+        idle:   { file: 'src/sprites/Fantasy Warrior/Sprites/Idle.png',    frames: 10, fps: 8,  loop: true  },
+        walk:   { file: 'src/sprites/Fantasy Warrior/Sprites/Run.png',     frames: 8,  fps: 12, loop: true  },
+        jump:   { file: 'src/sprites/Fantasy Warrior/Sprites/Jump.png',    frames: 3,  fps: 8,  loop: false },
+        attack: { file: 'src/sprites/Fantasy Warrior/Sprites/Attack1.png', frames: 7,  fps: 14, loop: false },
+        hurt:   { file: 'src/sprites/Fantasy Warrior/Sprites/Take hit.png',frames: 3,  fps: 10, loop: false },
+        dodge:  { file: 'src/sprites/Fantasy Warrior/Sprites/Run.png',     frames: 8,  fps: 22, loop: false },
+      },
+    },
+
+    striker: {
+      frameWidth: 120, frameHeight: 80,
+      displayScale: 1.15, anchorY: 0.90,
+      anims: {
+        idle:   { file: 'src/sprites/Colour1/Outline/120x80_PNGSheets/_Idle.png',   frames: 10, fps: 8,  loop: true  },
+        walk:   { file: 'src/sprites/Colour1/Outline/120x80_PNGSheets/_Run.png',    frames: 10, fps: 12, loop: true  },
+        jump:   { file: 'src/sprites/Colour1/Outline/120x80_PNGSheets/_Jump.png',   frames: 1,  fps: 8,  loop: false },
+        attack: { file: 'src/sprites/Colour1/Outline/120x80_PNGSheets/_Attack.png', frames: 4,  fps: 14, loop: false },
+        hurt:   { file: 'src/sprites/Colour1/Outline/120x80_PNGSheets/_Hit.png',    frames: 1,  fps: 10, loop: false },
+        dodge:  { file: 'src/sprites/Colour1/Outline/120x80_PNGSheets/_Dash.png',   frames: 1,  fps: 18, loop: false },
+      },
+    },
+
+    duelist: {
+      frameWidth: 120, frameHeight: 80,
+      displayScale: 1.15, anchorY: 0.90,
+      anims: {
+        idle:   { file: 'src/sprites/Colour2/Outline/120x80_PNGSheets/_Idle.png',   frames: 10, fps: 8,  loop: true  },
+        walk:   { file: 'src/sprites/Colour2/Outline/120x80_PNGSheets/_Run.png',    frames: 10, fps: 12, loop: true  },
+        jump:   { file: 'src/sprites/Colour2/Outline/120x80_PNGSheets/_Jump.png',   frames: 1,  fps: 8,  loop: false },
+        attack: { file: 'src/sprites/Colour2/Outline/120x80_PNGSheets/_Attack.png', frames: 4,  fps: 14, loop: false },
+        hurt:   { file: 'src/sprites/Colour2/Outline/120x80_PNGSheets/_Hit.png',    frames: 1,  fps: 10, loop: false },
+        dodge:  { file: 'src/sprites/Colour2/Outline/120x80_PNGSheets/_Dash.png',   frames: 1,  fps: 18, loop: false },
+      },
+    },
+
+  }, // end characters
+
+  enemies: {
+
+    /* existing goblin replaced with MCF sprite (Attack3 only pack — frame 0 = idle) */
+    goblin: {
+      frameWidth: 150, frameHeight: 150,
+      displayScale: 0.48, anchorY: 0.88,
+      anims: {
+        idle:   { file: 'src/sprites/Monster_Creatures_Fantasy(Version 1.3)/Goblin/Attack3.png', frames: 1,  fps: 2,  loop: true  },
+        attack: { file: 'src/sprites/Monster_Creatures_Fantasy(Version 1.3)/Goblin/Attack3.png', frames: 12, fps: 12, loop: false },
+      },
+    },
+
+    flying_eye: {
+      frameWidth: 150, frameHeight: 150,
+      displayScale: 0.48, anchorY: 0.88,
+      anims: {
+        idle:   { file: 'src/sprites/Monster_Creatures_Fantasy(Version 1.3)/Flying eye/Attack3.png', frames: 1, fps: 2,  loop: true  },
+        attack: { file: 'src/sprites/Monster_Creatures_Fantasy(Version 1.3)/Flying eye/Attack3.png', frames: 6, fps: 12, loop: false },
+      },
+    },
+
+    mushroom: {
+      frameWidth: 150, frameHeight: 150,
+      displayScale: 0.48, anchorY: 0.88,
+      anims: {
+        idle:   { file: 'src/sprites/Monster_Creatures_Fantasy(Version 1.3)/Mushroom/Attack3.png', frames: 1,  fps: 2,  loop: true  },
+        attack: { file: 'src/sprites/Monster_Creatures_Fantasy(Version 1.3)/Mushroom/Attack3.png', frames: 11, fps: 12, loop: false },
+      },
+    },
+
+    skeleton: {
+      frameWidth: 150, frameHeight: 150,
+      displayScale: 0.52, anchorY: 0.90,
+      anims: {
+        idle:   { file: 'src/sprites/Monster_Creatures_Fantasy(Version 1.3)/Skeleton/Attack3.png', frames: 1, fps: 2,  loop: true  },
+        attack: { file: 'src/sprites/Monster_Creatures_Fantasy(Version 1.3)/Skeleton/Attack3.png', frames: 6, fps: 12, loop: false },
+      },
+    },
+
+    fire_worm: {
+      frameWidth: 90, frameHeight: 90,
+      displayScale: 0.90, anchorY: 0.88,
+      anims: {
+        idle:   { file: 'src/sprites/Fire Worm/Sprites/Worm/Idle.png',    frames: 9,  fps: 8,  loop: true  },
+        attack: { file: 'src/sprites/Fire Worm/Sprites/Worm/Attack.png',  frames: 16, fps: 14, loop: false },
+        hurt:   { file: 'src/sprites/Fire Worm/Sprites/Worm/Get Hit.png', frames: 3,  fps: 10, loop: false },
+      },
+    },
+
+  }, // end enemies
+
+  bosses: {
+    /* No real-art boss sprites uploaded yet — all bosses remain procedural. */
+  },
+
+};

@@ -6,6 +6,23 @@
 class BootScene extends Phaser.Scene {
   constructor() { super('Boot'); }
 
+  preload() {
+    if (!window.ASSET_MANIFEST) return;
+    ['characters', 'enemies', 'bosses'].forEach((section) => {
+      const sec = ASSET_MANIFEST[section] || {};
+      Object.keys(sec).forEach((id) => {
+        const ent = sec[id];
+        Object.keys(ent.anims).forEach((state) => {
+          const a = ent.anims[state];
+          const texKey = 'art_' + section.charAt(0) + '_' + id + '_' + state;
+          a._texKey = texKey;
+          this.load.spritesheet(texKey, a.file,
+            { frameWidth: ent.frameWidth, frameHeight: ent.frameHeight });
+        });
+      });
+    });
+  }
+
   create() {
     const g = this.make.graphics({ add: false });
 
@@ -65,7 +82,7 @@ class BootScene extends Phaser.Scene {
 
     g.destroy();
 
-    /* hero walk-cycle animation */
+    /* hero walk-cycle animation (procedural fallback) */
     this.anims.create({
       key: 'hero-walk',
       frames: [{ key: 'hero_walk0' }, { key: 'hero_idle' },
@@ -73,7 +90,32 @@ class BootScene extends Phaser.Scene {
       frameRate: 9, repeat: -1,
     });
 
+    this._buildRealArtAnims();
+
     this.scene.start('Menu');
+  }
+
+  _buildRealArtAnims() {
+    if (!window.ASSET_MANIFEST) return;
+    ['characters', 'enemies', 'bosses'].forEach((section) => {
+      const sec = ASSET_MANIFEST[section] || {};
+      Object.keys(sec).forEach((id) => {
+        const ent = sec[id];
+        Object.keys(ent.anims).forEach((state) => {
+          const a = ent.anims[state];
+          if (!a._texKey || !this.textures.exists(a._texKey)) return;
+          const key = 'art:' + section + ':' + id + ':' + state;
+          if (this.anims.exists(key)) return;
+          this.anims.create({
+            key,
+            frames: this.anims.generateFrameNumbers(a._texKey,
+              { start: 0, end: a.frames - 1 }),
+            frameRate: a.fps,
+            repeat: a.loop ? -1 : 0,
+          });
+        });
+      });
+    });
   }
 
   /* ======================================================================
@@ -204,8 +246,16 @@ class BootScene extends Phaser.Scene {
                  feature: 'hat', weapon: 'staff' },
       armored: { body: 0x8a8f9e, bodyDark: 0x5c6070, belly: 0xb3b8c6,
                  feature: 'helmet', weapon: 'club' },
-      shadow:  { body: 0x2c2840, bodyDark: 0x16142a, belly: 0x423c63,
-                 feature: 'aura', weapon: 'sword', eyeGlow: 0x57e8ff },
+      shadow:   { body: 0x2c2840, bodyDark: 0x16142a, belly: 0x423c63,
+                  feature: 'aura', weapon: 'sword', eyeGlow: 0x57e8ff },
+      skeleton: { body: 0xd8d0b8, bodyDark: 0xa89e88, belly: 0xf0ecd8,
+                  feature: 'skull', weapon: 'sword' },
+      flying_eye: { body: 0x7c1c8c, bodyDark: 0x4e1260, belly: 0xa84cc4,
+                    feature: 'aura', weapon: null, eyeGlow: 0xff3aff },
+      mushroom: { body: 0xcc3333, bodyDark: 0x8a2020, belly: 0xf0c0a0,
+                  feature: 'hat', weapon: null },
+      fire_worm: { body: 0xcc4400, bodyDark: 0x882200, belly: 0xff8844,
+                   feature: 'horns', weapon: null, eyeGlow: 0xff4400 },
     };
     return Object.assign({ pose: pose }, styles[key] || styles.goblin);
   }

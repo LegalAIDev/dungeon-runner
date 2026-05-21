@@ -38,8 +38,22 @@ const CHARACTERS = [
     desc: '+1 ⭐ per Math Lab answer.', passive: 'Learns faster in the Lab.' },
   { id: 'knight',  name: 'Knight',  cost: 400, gearScore: 20, bonusHp: 20, heavySpeed: 0.25,
     desc: '+1 heart, faster heavy attacks.', passive: 'Tanky and strong.' },
-  { id: 'archer',  name: 'Archer',  cost: 350, gearScore: 20, bonusHp: 0, alwaysRanged: true,
+  { id: 'archer',   name: 'Archer',    cost: 350, gearScore: 20, bonusHp: 0, alwaysRanged: true,
     desc: 'All attacks are ranged shots.', passive: 'Fights from a safe distance.' },
+  { id: 'warrior',  name: 'Warrior',   cost: 500, gearScore: 25, bonusHp: 10, crit: 0.15,
+    desc: '+1 heart, +15% crit chance.', passive: 'Battle-hardened veteran.' },
+  { id: 'king',     name: 'King',      cost: 650, gearScore: 30, bonusHp: 30,
+    desc: '+3 hearts — maximum toughness.', passive: 'Royally hard to kill.' },
+  { id: 'arcmage',  name: 'Arcmage',   cost: 600, gearScore: 20, bonusHp: 0, labBonus: 2, alwaysRanged: true,
+    desc: '+2 ⭐ per Lab answer, ranged only.', passive: 'Scholar of the arcane.' },
+  { id: 'ranger',   name: 'Ranger',    cost: 450, gearScore: 20, bonusHp: 0, crit: 0.20, alwaysRanged: true,
+    desc: '+20% crit, attacks are ranged.', passive: 'Precise long-range shots.' },
+  { id: 'berserker',name: 'Berserker', cost: 550, gearScore: 25, bonusHp: 5, crit: 0.30,
+    desc: '+30% crit, +½ heart.', passive: 'Wild and devastating strikes.' },
+  { id: 'striker',  name: 'Striker',   cost: 400, gearScore: 20, bonusHp: 0, crit: 0.10,
+    desc: '+10% crit, fast combo style.', passive: 'Never stops attacking.' },
+  { id: 'duelist',  name: 'Duelist',   cost: 480, gearScore: 22, bonusHp: 0, crit: 0.18,
+    desc: '+18% crit, elegant fighter.', passive: 'Precision over brute force.' },
 ];
 
 const COMPANIONS = [
@@ -83,16 +97,16 @@ const MATH_TOPICS = [
 
 const WORLDS = [
   { id: 'forest', name: 'Goblin Forest', biome: 0, starGate: 0,
-    enemies: ['goblin', 'orc'],          boss: 'goblin_king',
+    enemies: ['goblin', 'skeleton', 'mushroom'], boss: 'goblin_king',
     recommend: 'Gear 10 – 55' },
   { id: 'desert', name: 'Orc Desert',    biome: 1, starGate: 80,
-    enemies: ['orc', 'mage', 'armored'], boss: 'orc_warchief',
+    enemies: ['orc', 'mage', 'armored', 'fire_worm'], boss: 'orc_warchief',
     recommend: 'Gear 35 – 120' },
   { id: 'ice',    name: 'Troll Ice Cave',biome: 2, starGate: 220,
-    enemies: ['troll', 'mage', 'armored'], boss: 'frost_troll',
+    enemies: ['troll', 'flying_eye', 'armored', 'skeleton'], boss: 'frost_troll',
     recommend: 'Gear 80 – 160' },
   { id: 'castle', name: 'Dragon Castle', biome: 3, starGate: 500,
-    enemies: ['shadow', 'armored', 'troll'], boss: 'dragon_lord',
+    enemies: ['shadow', 'armored', 'troll', 'mage'], boss: 'dragon_lord',
     recommend: 'Gear 160 – 225' },
 ];
 
