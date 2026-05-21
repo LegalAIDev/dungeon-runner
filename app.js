@@ -37,6 +37,8 @@ const state = {
   comboBonusUntil: 0,
 };
 
+const SAVE_KEY = 'mathRunnerProgressV1';
+
 const upgrades = [
   { id: 'shoes', name: 'Speed Shoes', cost: 25, tier: 1, desc: '+8% run speed', bought: 0, apply: () => state.speed *= 1.08 },
   { id: 'double', name: 'Jump Boost', cost: 40, tier: 2, desc: '+2 jump power', bought: 0, apply: () => state.jumpPower += 2 },
@@ -44,6 +46,38 @@ const upgrades = [
   { id: 'shield', name: 'Shield', cost: 50, tier: 2, desc: '1 hit protection (10s)', bought: 0, apply: () => state.invulnUntil = performance.now() + 10000 },
 ];
 
+
+
+function saveProgress() {
+  const payload = {
+    coins: state.coins,
+    upgrades: upgrades.map((u) => ({ id: u.id, bought: u.bought })),
+  };
+  localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
+}
+
+function loadProgress() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed.coins === 'number' && Number.isFinite(parsed.coins)) {
+      state.coins = Math.max(0, Math.floor(parsed.coins));
+    }
+    if (Array.isArray(parsed.upgrades)) {
+      parsed.upgrades.forEach((saved) => {
+        const up = upgrades.find((u) => u.id === saved.id);
+        const bought = Number(saved.bought);
+        if (!up || !Number.isFinite(bought) || bought < 1) return;
+        const toApply = Math.floor(bought);
+        up.bought = toApply;
+        for (let i = 0; i < toApply; i++) up.apply();
+      });
+    }
+  } catch {
+    // If save data is corrupted, ignore it and continue with defaults.
+  }
+}
 
 function resizeCanvasToViewport() {
   const dpr = window.devicePixelRatio || 1;
@@ -117,6 +151,7 @@ submitBtn.addEventListener('click', (e) => {
       const streakBonus = Math.min(6, state.mathStreak);
       state.coins += streakBonus;
       state.comboBonusUntil = performance.now() + 4000;
+      saveProgress();
       feedbackEl.textContent = `Correct! Purchased ${upgrade.name}. +${streakBonus} streak coins`;
       feedbackEl.className = 'feedback good';
       setTimeout(() => closeDialog(), 650);
@@ -249,8 +284,10 @@ function update() {
       state.coinStreak = 0;
       state.invulnUntil = performance.now() + 900;
       if (state.lives <= 0) {
-        alert(`Game over! Distance: ${Math.floor(state.distance)}m`);
-        Object.assign(state, { distance: 0, coins: 0, lives: 3, speed: 4, obstacles: [], pickups: [], coinStreak: 0, mathStreak: 0, comboBonusUntil: 0, lastCoinAt: 0 });
+        const finalDistance = Math.floor(state.distance);
+        const openShop = window.confirm(`Game over! Distance: ${finalDistance}m. Open shop now?`);
+        Object.assign(state, { distance: 0, lives: 3, speed: 4, obstacles: [], pickups: [], coinStreak: 0, mathStreak: 0, comboBonusUntil: 0, lastCoinAt: 0 });
+        if (openShop) state.paused = true;
       }
       break;
     }
@@ -266,6 +303,7 @@ function update() {
       const comboMult = now < state.comboBonusUntil ? 1.5 : 1;
       const earned = Math.max(1, Math.round((1 + streakStep) * state.coinMultiplier * comboMult));
       state.coins += earned;
+      saveProgress();
     }
     return !hit;
   });
@@ -412,5 +450,6 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
+loadProgress();
 renderStore();
 loop();
