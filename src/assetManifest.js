@@ -227,3 +227,9 @@ const ASSET_MANIFEST = {
   },
 
 };
+
+/* Expose on window: a top-level `const` is a lexical global and never becomes
+   a window property, but BootScene and AnimHelper gate the whole real-art
+   pipeline on `window.ASSET_MANIFEST`. Without this the manifest reads as
+   undefined and every sprite silently falls back to procedural art. */
+window.ASSET_MANIFEST = ASSET_MANIFEST;

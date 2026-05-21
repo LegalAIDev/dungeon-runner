@@ -12,6 +12,7 @@ class ShopScene extends Phaser.Scene {
     this.fromScene = (data && data.from) || 'WorldMap';
     this.tab = (data && data.tab) || 'upgrades';
     if (!this.upgradeCat) this.upgradeCat = 'weapon';
+    if (this.upgradePage == null) this.upgradePage = 0;
   }
 
   create() {
@@ -165,18 +166,48 @@ class ShopScene extends Phaser.Scene {
       this.content.add(UI.button(this, x, 138, {
         label: c[1], width: 156, height: 42, fontSize: 17,
         color: c[0] === this.upgradeCat ? UI.COLORS.accent : UI.COLORS.panelLight,
-        onClick: () => { this.upgradeCat = c[0]; this.switchTab('upgrades'); },
+        onClick: () => {
+          this.upgradeCat = c[0];
+          this.upgradePage = 0;
+          this.switchTab('upgrades');
+        },
       }));
     });
 
     const lists = { weapon: WEAPONS, armor: ARMOR,
                     character: CHARACTERS, companion: COMPANIONS };
     const list = lists[this.upgradeCat];
+
+    /* paginate: a full row of cards is wider than the screen once a category
+       has more than a handful of items (Heroes has twelve) */
+    const perPage = 4;
+    const pageCount = Math.ceil(list.length / perPage);
+    this.upgradePage = Phaser.Math.Clamp(this.upgradePage || 0, 0, pageCount - 1);
+    const start = this.upgradePage * perPage;
+    const page = list.slice(start, start + perPage);
+
     const cardW = 176, gap = 14;
-    const startX = W / 2 - (cardW * list.length + gap * (list.length - 1)) / 2 + cardW / 2;
-    list.forEach((item, i) => {
+    const startX = W / 2 - (cardW * page.length + gap * (page.length - 1)) / 2 + cardW / 2;
+    page.forEach((item, i) => {
       this.itemCard(startX + i * (cardW + gap), 340, cardW, item, this.upgradeCat);
     });
+
+    if (pageCount > 1) {
+      this.content.add(UI.button(this, 54, 340, {
+        label: '‹', width: 56, height: 96, fontSize: 40,
+        color: UI.COLORS.panelLight, enabled: this.upgradePage > 0,
+        onClick: () => { this.upgradePage--; this.switchTab('upgrades'); },
+      }));
+      this.content.add(UI.button(this, W - 54, 340, {
+        label: '›', width: 56, height: 96, fontSize: 40,
+        color: UI.COLORS.panelLight, enabled: this.upgradePage < pageCount - 1,
+        onClick: () => { this.upgradePage++; this.switchTab('upgrades'); },
+      }));
+      this.content.add(this.add.text(W / 2, 172,
+        'Page ' + (this.upgradePage + 1) + ' / ' + pageCount, {
+        fontFamily: UI.FONT, fontSize: '15px', color: '#cdb8ff', fontStyle: 'bold',
+      }).setOrigin(0.5));
+    }
   }
 
   /* ---- shared item card ------------------------------------------------- */
@@ -201,17 +232,27 @@ class ShopScene extends Phaser.Scene {
       align: 'center', wordWrap: { width: w - 18 },
     }).setOrigin(0.5, 0));
 
+    const isChar = kind === 'character';
+
+    /* hero preview — let the player see who they are buying / equipping */
+    if (isChar) {
+      const hero = this.add.sprite(x, y - 10, 'hero_idle');
+      AnimHelper.initSprite(this, hero, 'characters', item.id, 'hero');
+      if (!hero._hasArt) hero.setOrigin(0.5, 0.9).setScale(0.92);
+      this.content.add(hero);
+    }
+
     let stat = 'Consumable';
     if (kind === 'weapon')    stat = '⚔ Damage ' + item.damage;
     else if (kind === 'armor')stat = '🛡 Defense ' + item.defense;
-    else if (kind === 'character')
+    else if (isChar)
       stat = item.bonusHp ? '❤ +' + Math.round(item.bonusHp / 20) + ' heart' : 'Hero';
     else if (kind === 'companion') stat = 'Companion';
-    this.content.add(this.add.text(x, y - cardH / 2 + 62, stat, {
+    this.content.add(this.add.text(x, isChar ? y + 10 : y - cardH / 2 + 62, stat, {
       fontFamily: UI.FONT, fontSize: '15px', color: '#ffce3a', fontStyle: 'bold',
     }).setOrigin(0.5));
 
-    this.content.add(this.add.text(x, y - cardH / 2 + 86, item.desc, {
+    this.content.add(this.add.text(x, isChar ? y + 30 : y - cardH / 2 + 86, item.desc, {
       fontFamily: UI.FONT, fontSize: '13px', color: '#cdb8ff',
       align: 'center', wordWrap: { width: w - 22 },
     }).setOrigin(0.5, 0));
