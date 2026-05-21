@@ -180,26 +180,109 @@ function update() {
   });
 }
 
+function drawSky() {
+  const sky = ctx.createLinearGradient(0, 0, 0, 240);
+  sky.addColorStop(0, '#78c8ff');
+  sky.addColorStop(0.6, '#b7e8ff');
+  sky.addColorStop(1, '#dcf4ff');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, canvas.width, 240);
+
+  const offset = (state.distance * 0.08) % 280;
+  for (let i = -1; i < 5; i++) {
+    const x = i * 280 - offset;
+    const y = 55 + (i % 2) * 22;
+    ctx.fillStyle = 'rgba(255,255,255,.85)';
+    ctx.beginPath();
+    ctx.arc(x + 40, y, 20, 0, Math.PI * 2);
+    ctx.arc(x + 62, y - 9, 24, 0, Math.PI * 2);
+    ctx.arc(x + 88, y, 20, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawGround() {
+  const hillOffset = (state.distance * 0.2) % canvas.width;
+  ctx.fillStyle = '#98db87';
+  ctx.beginPath();
+  ctx.moveTo(-hillOffset, 320);
+  for (let i = -1; i < 6; i++) ctx.quadraticCurveTo(i * 200 + 100 - hillOffset, 250, i * 200 + 200 - hillOffset, 320);
+  ctx.lineTo(canvas.width, 350);
+  ctx.lineTo(0, 350);
+  ctx.closePath();
+  ctx.fill();
+
+  const ground = ctx.createLinearGradient(0, 320, 0, 350);
+  ground.addColorStop(0, '#6bc85d');
+  ground.addColorStop(1, '#3f9e3d');
+  ctx.fillStyle = ground;
+  ctx.fillRect(0, 320, canvas.width, 30);
+}
+
+function drawPlayer(p) {
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  if (performance.now() < state.invulnUntil) ctx.globalAlpha = 0.65 + Math.sin(state.t * 0.8) * 0.25;
+
+  const height = p.sliding ? 28 : p.h;
+  const body = ctx.createLinearGradient(0, 0, 0, height);
+  body.addColorStop(0, '#5568ff');
+  body.addColorStop(1, '#2c3fc9');
+  ctx.fillStyle = body;
+  ctx.fillRect(0, 0, p.w, height);
+
+  ctx.fillStyle = '#f7d6b5';
+  ctx.fillRect(8, 6, 18, 12);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(20, height - 10, 10, 7);
+  ctx.restore();
+}
+
+function drawObstacle(o) {
+  const spikes = Math.max(2, Math.floor(o.w / 8));
+  ctx.fillStyle = '#7a3324';
+  ctx.fillRect(o.x, o.y + 8, o.w, o.h - 8);
+  ctx.fillStyle = '#b9543f';
+  for (let i = 0; i < spikes; i++) {
+    const x = o.x + i * (o.w / spikes);
+    ctx.beginPath();
+    ctx.moveTo(x, o.y + 8);
+    ctx.lineTo(x + (o.w / spikes) / 2, o.y);
+    ctx.lineTo(x + (o.w / spikes), o.y + 8);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+function drawCoin(c) {
+  const pulse = 1 + Math.sin((state.t + c.x) * 0.08) * 0.08;
+  ctx.save();
+  ctx.translate(c.x, c.y);
+  ctx.scale(pulse, pulse);
+  ctx.fillStyle = '#ffd43b';
+  ctx.beginPath();
+  ctx.arc(0, 0, c.r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#e6a91b';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,.7)';
+  ctx.beginPath();
+  ctx.arc(-2, -2, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#6ec0ff';
-  ctx.fillRect(0, 0, canvas.width, 220);
-  ctx.fillStyle = '#6bbf59';
-  ctx.fillRect(0, 320, canvas.width, 30);
+  drawSky();
+  drawGround();
 
-  ctx.fillStyle = '#454d66';
   const p = state.player;
-  ctx.fillRect(p.x, p.y, p.w, p.sliding ? 28 : p.h);
+  drawPlayer(p);
 
-  ctx.fillStyle = '#9b3f2b';
-  state.obstacles.forEach(o => ctx.fillRect(o.x, o.y, o.w, o.h));
-
-  ctx.fillStyle = '#ffcf35';
-  state.pickups.forEach(c => {
-    ctx.beginPath();
-    ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
-    ctx.fill();
-  });
+  state.obstacles.forEach(drawObstacle);
+  state.pickups.forEach(drawCoin);
 
   if (state.paused) {
     ctx.fillStyle = 'rgba(0,0,0,.4)';

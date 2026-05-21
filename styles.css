@@ -26,15 +26,15 @@ body {
   background: var(--panel);
   border-radius: 12px;
   padding: 0.75rem 1rem;
-  box-shadow: 0 3px 12px rgba(0,0,0,.08);
+  box-shadow: 0 8px 24px rgba(76,111,255,.16);
   font-weight: 700;
 }
 .game-wrap { margin-top: 1rem; }
 canvas {
   width: 100%;
   border-radius: 12px;
-  background: linear-gradient(#cbecff, #ddf7ff 55%, #b1e3a1 56%, #96d985);
-  box-shadow: 0 3px 12px rgba(0,0,0,.08);
+  background: linear-gradient(180deg, #8fd5ff 0%, #cdf0ff 56%, #89d37b 56%, #63ba57 100%);
+  box-shadow: 0 12px 30px rgba(0,0,0,.14);
 }
 .controls { margin: .4rem 0 0; font-size: .95rem; }
 .store {
