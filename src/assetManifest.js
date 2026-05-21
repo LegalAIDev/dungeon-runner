@@ -15,7 +15,7 @@ const ASSET_MANIFEST = {
 
     fighter: {
       frameWidth: 200, frameHeight: 200,
-      displayScale: 0.55, anchorY: 0.92,
+      displayScale: 2.27, anchorY: 0.605,
       anims: {
         idle:   { file: 'src/sprites/Martial Hero/Sprites/Idle.png',    frames: 8, fps: 8,  loop: true  },
         walk:   { file: 'src/sprites/Martial Hero/Sprites/Run.png',     frames: 8, fps: 12, loop: true  },
@@ -28,7 +28,7 @@ const ASSET_MANIFEST = {
 
     ninja: {
       frameWidth: 200, frameHeight: 200,
-      displayScale: 0.55, anchorY: 0.92,
+      displayScale: 2.11, anchorY: 0.635,
       anims: {
         idle:   { file: 'src/sprites/Martial Hero 2/Sprites/Idle.png',     frames: 4, fps: 6,  loop: true  },
         walk:   { file: 'src/sprites/Martial Hero 2/Sprites/Run.png',      frames: 8, fps: 12, loop: true  },
@@ -41,7 +41,7 @@ const ASSET_MANIFEST = {
 
     wizard: {
       frameWidth: 150, frameHeight: 150,
-      displayScale: 0.70, anchorY: 0.92,
+      displayScale: 2.03, anchorY: 0.673,
       anims: {
         idle:   { file: 'src/sprites/Evil Wizard/Sprites/Idle.png',    frames: 8, fps: 8,  loop: true  },
         walk:   { file: 'src/sprites/Evil Wizard/Sprites/Move.png',    frames: 8, fps: 12, loop: true  },
@@ -54,7 +54,7 @@ const ASSET_MANIFEST = {
 
     knight: {
       frameWidth: 140, frameHeight: 140,
-      displayScale: 0.76, anchorY: 0.92,
+      displayScale: 3.03, anchorY: 0.586,
       anims: {
         idle:   { file: 'src/sprites/Hero Knight 2/Sprites/Idle.png',    frames: 11, fps: 8,  loop: true  },
         walk:   { file: 'src/sprites/Hero Knight 2/Sprites/Run.png',     frames: 8,  fps: 12, loop: true  },
@@ -67,7 +67,7 @@ const ASSET_MANIFEST = {
 
     archer: {
       frameWidth: 150, frameHeight: 150,
-      displayScale: 0.70, anchorY: 0.92,
+      displayScale: 2.81, anchorY: 0.64,
       anims: {
         idle:   { file: 'src/sprites/Huntress/Sprites/Idle.png',    frames: 8, fps: 8,  loop: true  },
         walk:   { file: 'src/sprites/Huntress/Sprites/Run.png',     frames: 8, fps: 12, loop: true  },
@@ -80,7 +80,7 @@ const ASSET_MANIFEST = {
 
     warrior: {
       frameWidth: 135, frameHeight: 135,
-      displayScale: 0.80, anchorY: 0.92,
+      displayScale: 3.11, anchorY: 0.63,
       anims: {
         idle:   { file: 'src/sprites/Medieval Warrior Pack 3/Sprites/Idle.png',    frames: 10, fps: 8,  loop: true  },
         walk:   { file: 'src/sprites/Medieval Warrior Pack 3/Sprites/Run.png',     frames: 6,  fps: 12, loop: true  },
@@ -93,7 +93,7 @@ const ASSET_MANIFEST = {
 
     king: {
       frameWidth: 160, frameHeight: 111,
-      displayScale: 0.95, anchorY: 0.91,
+      displayScale: 2.19, anchorY: 0.937,
       anims: {
         idle:   { file: 'src/sprites/Medieval King Pack 2/Sprites/Idle.png',    frames: 8, fps: 8,  loop: true  },
         walk:   { file: 'src/sprites/Medieval King Pack 2/Sprites/Run.png',     frames: 8, fps: 12, loop: true  },
@@ -106,7 +106,7 @@ const ASSET_MANIFEST = {
 
     arcmage: {
       frameWidth: 231, frameHeight: 190,
-      displayScale: 0.56, anchorY: 0.92,
+      displayScale: 1.37, anchorY: 0.737,
       anims: {
         idle:   { file: 'src/sprites/Wizard Pack/Idle.png',    frames: 6, fps: 8,  loop: true  },
         walk:   { file: 'src/sprites/Wizard Pack/Run.png',     frames: 8, fps: 12, loop: true  },
@@ -119,7 +119,7 @@ const ASSET_MANIFEST = {
 
     ranger: {
       frameWidth: 100, frameHeight: 100,
-      displayScale: 1.05, anchorY: 0.90,
+      displayScale: 3.28, anchorY: 0.66,
       anims: {
         idle:   { file: 'src/sprites/Huntress 2/Sprites/Character/Idle.png',    frames: 10, fps: 8,  loop: true  },
         walk:   { file: 'src/sprites/Huntress 2/Sprites/Character/Run.png',     frames: 8,  fps: 12, loop: true  },
@@ -132,7 +132,7 @@ const ASSET_MANIFEST = {
 
     berserker: {
       frameWidth: 162, frameHeight: 162,
-      displayScale: 0.66, anchorY: 0.92,
+      displayScale: 2.62, anchorY: 0.617,
       anims: {
         idle:   { file: 'src/sprites/Fantasy Warrior/Sprites/Idle.png',    frames: 10, fps: 8,  loop: true  },
         walk:   { file: 'src/sprites/Fantasy Warrior/Sprites/Run.png',     frames: 8,  fps: 12, loop: true  },
@@ -145,7 +145,7 @@ const ASSET_MANIFEST = {
 
     striker: {
       frameWidth: 120, frameHeight: 80,
-      displayScale: 1.15, anchorY: 0.90,
+      displayScale: 3.11, anchorY: 0.988,
       anims: {
         idle:   { file: 'src/sprites/Colour1/Outline/120x80_PNGSheets/_Idle.png',   frames: 10, fps: 8,  loop: true  },
         walk:   { file: 'src/sprites/Colour1/Outline/120x80_PNGSheets/_Run.png',    frames: 10, fps: 12, loop: true  },
@@ -158,7 +158,7 @@ const ASSET_MANIFEST = {
 
     duelist: {
       frameWidth: 120, frameHeight: 80,
-      displayScale: 1.15, anchorY: 0.90,
+      displayScale: 3.11, anchorY: 0.988,
       anims: {
         idle:   { file: 'src/sprites/Colour2/Outline/120x80_PNGSheets/_Idle.png',   frames: 10, fps: 8,  loop: true  },
         walk:   { file: 'src/sprites/Colour2/Outline/120x80_PNGSheets/_Run.png',    frames: 10, fps: 12, loop: true  },
@@ -176,7 +176,7 @@ const ASSET_MANIFEST = {
     /* existing goblin replaced with MCF sprite (Attack3 only pack — frame 0 = idle) */
     goblin: {
       frameWidth: 150, frameHeight: 150,
-      displayScale: 0.48, anchorY: 0.88,
+      displayScale: 2.64, anchorY: 0.667,
       anims: {
         idle:   { file: 'src/sprites/Monster_Creatures_Fantasy(Version 1.3)/Goblin/Attack3.png', frames: 1,  fps: 2,  loop: true  },
         attack: { file: 'src/sprites/Monster_Creatures_Fantasy(Version 1.3)/Goblin/Attack3.png', frames: 12, fps: 12, loop: false },
@@ -185,7 +185,7 @@ const ASSET_MANIFEST = {
 
     flying_eye: {
       frameWidth: 150, frameHeight: 150,
-      displayScale: 0.48, anchorY: 0.88,
+      displayScale: 3.7, anchorY: 0.6,
       anims: {
         idle:   { file: 'src/sprites/Monster_Creatures_Fantasy(Version 1.3)/Flying eye/Attack3.png', frames: 1, fps: 2,  loop: true  },
         attack: { file: 'src/sprites/Monster_Creatures_Fantasy(Version 1.3)/Flying eye/Attack3.png', frames: 6, fps: 12, loop: false },
@@ -194,7 +194,7 @@ const ASSET_MANIFEST = {
 
     mushroom: {
       frameWidth: 150, frameHeight: 150,
-      displayScale: 0.48, anchorY: 0.88,
+      displayScale: 3.11, anchorY: 0.667,
       anims: {
         idle:   { file: 'src/sprites/Monster_Creatures_Fantasy(Version 1.3)/Mushroom/Attack3.png', frames: 1,  fps: 2,  loop: true  },
         attack: { file: 'src/sprites/Monster_Creatures_Fantasy(Version 1.3)/Mushroom/Attack3.png', frames: 11, fps: 12, loop: false },
@@ -203,7 +203,7 @@ const ASSET_MANIFEST = {
 
     skeleton: {
       frameWidth: 150, frameHeight: 150,
-      displayScale: 0.52, anchorY: 0.90,
+      displayScale: 1.76, anchorY: 0.667,
       anims: {
         idle:   { file: 'src/sprites/Monster_Creatures_Fantasy(Version 1.3)/Skeleton/Attack3.png', frames: 1, fps: 2,  loop: true  },
         attack: { file: 'src/sprites/Monster_Creatures_Fantasy(Version 1.3)/Skeleton/Attack3.png', frames: 6, fps: 12, loop: false },
@@ -212,7 +212,7 @@ const ASSET_MANIFEST = {
 
     fire_worm: {
       frameWidth: 90, frameHeight: 90,
-      displayScale: 0.90, anchorY: 0.88,
+      displayScale: 2.56, anchorY: 0.633,
       anims: {
         idle:   { file: 'src/sprites/Fire Worm/Sprites/Worm/Idle.png',    frames: 9,  fps: 8,  loop: true  },
         attack: { file: 'src/sprites/Fire Worm/Sprites/Worm/Attack.png',  frames: 16, fps: 14, loop: false },

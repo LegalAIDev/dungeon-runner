@@ -57,6 +57,11 @@ class GameScene extends Phaser.Scene {
     this.waveAnchorX = CONFIG.WAVE_FIRST_X;
     this.levelLength = CONFIG.WAVE_FIRST_X +
       (this.waves.length - 1) * CONFIG.WAVE_SPACING + CONFIG.WIDTH;
+
+    /* collidable cave platforms — the main floor plus jump-up ledges */
+    this.platforms = Level.buildPlatforms(this.levelLength);
+    Level.render(this, this.platforms, this.biome.caveTint);
+
     const cam = this.cameras.main;
     cam.setBounds(0, 0, this.levelLength, CONFIG.HEIGHT);
     cam.startFollow(this.player, true, 0.12, 1);
@@ -172,11 +177,14 @@ class GameScene extends Phaser.Scene {
     e.cfg = cfg;
     e.baseTexture = texture;
     e.hp = cfg.hp; e.maxHp = cfg.maxHp;
+    e.bodyH = cfg.h;             // logical height — independent of sprite padding
     e.dmg = cfg.damage;
     e.speed = cfg.speed;
     e.range = cfg.range;
     e.behaviour = cfg.behaviour;
     e.facing = -1;
+    e.vy = 0;
+    e.onGround = true;
     e.state = 'idle';
     e.stateAt = this.clock;
     e.struck = false;
@@ -226,13 +234,9 @@ class GameScene extends Phaser.Scene {
 
   scrollBackground(dt) {
     const sx = this.cameras.main.scrollX;
-    this.bg.hillFar.tilePositionX  = sx * 0.15;
-    this.bg.hillNear.tilePositionX = sx * 0.35;
-    this.bg.ground.tilePositionX   = sx;
-    this.bg.clouds.forEach((cl) => {
-      cl.x -= 7 * dt;
-      if (cl.x < -100) cl.x = CONFIG.WIDTH + 100;
-    });
+    if (this.bg && this.bg.layers) {
+      this.bg.layers.forEach((L) => { L.tilePositionX = sx * L.parallax; });
+    }
   }
 
   /* ---- player ----------------------------------------------------------- */
@@ -262,16 +266,25 @@ class GameScene extends Phaser.Scene {
     p.x = Phaser.Math.Clamp(p.x, CONFIG.ARENA_LEFT,
                             this.levelLength - CONFIG.ARENA_LEFT);
 
-    /* vertical motion (jump arc) */
+    /* vertical motion — gravity + one-way platform landing */
+    const prevFootY = p.y;
     if (!p.onGround) {
       p.vy += CONFIG.GRAVITY * dt;
       p.y += p.vy * dt;
-      if (p.y >= CONFIG.GROUND_Y) {
-        p.y = CONFIG.GROUND_Y;
-        p.onGround = true;
-        p.vy = 0;
-        SFX.land();
+      if (p.vy >= 0) {
+        const surf = Level.landingY(this.platforms, p.x, prevFootY, p.y, 20);
+        if (surf !== null) {
+          p.y = surf; p.onGround = true; p.vy = 0;
+          SFX.land();
+        }
       }
+      if (p.y > CONFIG.GROUND_Y) {
+        p.y = CONFIG.GROUND_Y; p.onGround = true; p.vy = 0;
+      }
+    } else {
+      const surf = Level.surfaceUnder(this.platforms, p.x, p.y, 20);
+      if (surf === null || surf - p.y > 6) p.onGround = false;  // walked off
+      else p.y = surf;
     }
 
     /* resolve an in-progress attack */
@@ -289,6 +302,7 @@ class GameScene extends Phaser.Scene {
 
     this.setPlayerPose(now, hurt, dodging);
     p.shadow.x = p.x;
+    p.shadow.y = p.y + 2;
     p.shadow.setAlpha(p.onGround ? 0.5 : 0.25);
     p.setDepth(p.y);
     p.setFlipX(p.facing < 0);
@@ -376,7 +390,8 @@ class GameScene extends Phaser.Scene {
     const inFront = this.enemies
       .filter((e) => e.alive)
       .map((e) => ({ e: e, gap: (e.x - p.x) * p.facing }))
-      .filter((o) => o.gap >= -26 && o.gap <= range)
+      .filter((o) => o.gap >= -26 && o.gap <= range &&
+                     Math.abs(o.e.y - p.y) <= 110)
       .sort((a, b) => a.gap - b.gap);
     if (inFront.length === 0) return;
     inFront.slice(0, maxTargets).forEach((o) => this.damageEnemy(o.e, dmg, type, crit));
@@ -406,15 +421,15 @@ class GameScene extends Phaser.Scene {
     if (e.behaviour === 'guard' && type === 'light' && !this.weapon.pierces &&
         !e.guardBroken) {
       dmg *= 0.18;
-      this.floatText(e.x, e.y - e.displayHeight - 6, 'GUARD', '#9bd0ff', 18);
+      this.floatText(e.x, e.y - e.bodyH - 6, 'GUARD', '#9bd0ff', 18);
     } else if (e.behaviour === 'guard' && type === 'heavy') {
       e.guardBroken = true;
     }
     dmg = Math.max(1, Math.round(dmg));
     e.hp -= dmg;
-    this.floatText(e.x + Phaser.Math.Between(-10, 10), e.y - e.displayHeight * 0.7,
+    this.floatText(e.x + Phaser.Math.Between(-10, 10), e.y - e.bodyH * 0.7,
       (crit ? '★' : '') + dmg, crit ? '#ffce3a' : '#ffffff', crit ? 26 : 21);
-    this.hitSpark(e.x, e.y - e.displayHeight * 0.5);
+    this.hitSpark(e.x, e.y - e.bodyH * 0.5);
     this.doHitStop();
 
     /* Light attacks only flinch (visual) — the enemy keeps advancing.
@@ -452,7 +467,7 @@ class GameScene extends Phaser.Scene {
     this.spawnCoins(e.x, e.y - 30, coins);
 
     e.kbVx = this.player.facing * 200;
-    for (let i = 0; i < 8; i++) this.hitSpark(e.x, e.y - e.height * 0.5);
+    for (let i = 0; i < 8; i++) this.hitSpark(e.x, e.y - e.bodyH * 0.5);
     this.tweens.add({
       targets: e, alpha: 0, angle: this.player.facing * 70, y: e.y + 14,
       duration: 320, onComplete: () => this.removeEnemy(e),
@@ -499,6 +514,24 @@ class GameScene extends Phaser.Scene {
       e.x = Phaser.Math.Clamp(e.x, CONFIG.ARENA_LEFT, this.levelLength);
     }
 
+    /* gravity + one-way platform landing (flying foes stay airborne) */
+    if (!e.cfg.flying) {
+      const prevFootY = e.y;
+      if (!e.onGround) {
+        e.vy += CONFIG.GRAVITY * dt;
+        e.y += e.vy * dt;
+        if (e.vy >= 0) {
+          const surf = Level.landingY(this.platforms, e.x, prevFootY, e.y, 18);
+          if (surf !== null) { e.y = surf; e.onGround = true; e.vy = 0; }
+        }
+        if (e.y > CONFIG.GROUND_Y) { e.y = CONFIG.GROUND_Y; e.onGround = true; e.vy = 0; }
+      } else {
+        const surf = Level.surfaceUnder(this.platforms, e.x, e.y, 18);
+        if (surf === null || surf - e.y > 6) e.onGround = false;
+        else e.y = surf;
+      }
+    }
+
     if (e.isBoss) this.updateBossPhase(e, now);
     const frozen = now < e.frozenUntil;
 
@@ -539,9 +572,10 @@ class GameScene extends Phaser.Scene {
     else e.clearTint();
 
     e.shadow.x = e.x;
+    e.shadow.y = e.y + 2;
     e.setDepth(e.y);
     if (e.hpBg) {
-      const top = e.y - e.displayHeight - 12;
+      const top = e.y - e.bodyH - 12;
       e.hpBg.x = e.x; e.hpBg.y = top;
       e.hpFg.x = e.x - 22; e.hpFg.y = top;
       e.hpFg.width = 44 * Math.max(0, e.hp / e.maxHp);
@@ -575,6 +609,7 @@ class GameScene extends Phaser.Scene {
     const p = this.player;
     if (e.behaviour === 'ranged') { this.castEnemyBolt(e); return; }
     if (dist > e.range + 28) return;
+    if (Math.abs(p.y - e.y) > 110) return;          // player up on a ledge
     if ((e.behaviour === 'sweep' || e.isBoss) && !p.onGround &&
         p.y < CONFIG.GROUND_Y - 46) {
       this.floatText(p.x, p.y - 90, 'dodged!', '#9bff9b', 18);
@@ -587,7 +622,7 @@ class GameScene extends Phaser.Scene {
 
   castEnemyBolt(e) {
     const p = this.player;
-    const b = this.add.image(e.x + e.facing * 20, e.y - e.displayHeight * 0.55, 'bolt')
+    const b = this.add.image(e.x + e.facing * 20, e.y - e.bodyH * 0.55, 'bolt')
       .setTint(0xc77aff).setDepth(e.y + 1).setScale(1.2);
     b.vx = (p.x >= e.x ? 1 : -1) * 360;
     b.dmg = e.dmg;
@@ -699,7 +734,7 @@ class GameScene extends Phaser.Scene {
           const e = this.enemies[i];
           if (e.alive && b.hitSet.indexOf(e) === -1 &&
               Math.abs(e.x - b.x) < 40 &&
-              Math.abs((e.y - e.displayHeight * 0.5) - b.y) < e.displayHeight * 0.6) {
+              Math.abs((e.y - e.bodyH * 0.5) - b.y) < e.bodyH * 0.6) {
             b.hitSet.push(e);
             this.damageEnemy(e, b.dmg, 'light', b.crit);
             if (!b.pierce) { b.destroy(); return false; }
@@ -736,7 +771,9 @@ class GameScene extends Phaser.Scene {
         c.vy += 1400 * dt;
         c.x += c.vx * dt;
         c.y += c.vy * dt;
-        if (c.y >= CONFIG.GROUND_Y - 14) { c.y = CONFIG.GROUND_Y - 14; c.grounded = true; }
+        const surf = Level.surfaceUnder(this.platforms, c.x, c.y, 0);
+        const rest = (surf !== null ? surf : CONFIG.GROUND_Y) - 14;
+        if (c.y >= rest) { c.y = rest; c.grounded = true; }
       }
       const dist = Phaser.Math.Distance.Between(c.x, c.y, p.x, p.y - 40);
       if ((c.grounded && dist < 64) || magnet || now - c.bornAt > 9000) {

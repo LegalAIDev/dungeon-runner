@@ -7,6 +7,14 @@ class BootScene extends Phaser.Scene {
   constructor() { super('Boot'); }
 
   preload() {
+    /* layered cave backdrop + the level tileset (32x32 tiles) */
+    this.load.image('bg1', 'src/sprites/background1.png');
+    this.load.image('bg2', 'src/sprites/background2.png');
+    this.load.image('bg3', 'src/sprites/background3.png');
+    this.load.image('bg4', 'src/sprites/background4a.png');
+    this.load.spritesheet('tiles', 'src/sprites/mainlev_build.png',
+      { frameWidth: 32, frameHeight: 32 });
+
     if (!window.ASSET_MANIFEST) return;
     ['characters', 'enemies', 'bosses'].forEach((section) => {
       const sec = ASSET_MANIFEST[section] || {};
@@ -66,19 +74,6 @@ class BootScene extends Phaser.Scene {
     this.drawSpark(g); g.generateTexture('spark', 16, 16); g.clear();
     g.fillStyle(0xffffff, 1); g.fillRoundedRect(0, 0, 9, 9, 2);
     g.generateTexture('bit', 9, 9); g.clear();
-    this.drawCloud(g); g.generateTexture('cloud', 140, 74); g.clear();
-    this.drawStar(g);  g.generateTexture('star', 12, 12);  g.clear();
-    this.drawGlow(g);  g.generateTexture('glow', 128, 128); g.clear();
-
-    /* ---- scenery textures, one set per world ---------------------------- */
-    BIOMES.forEach((b) => {
-      this.drawHills(g, 512, 220, b.hillFar, 3, 26);
-      g.generateTexture('hillfar_' + b.key, 512, 220); g.clear();
-      this.drawHills(g, 512, 250, b.hillNear, 2, 52);
-      g.generateTexture('hillnear_' + b.key, 512, 250); g.clear();
-      this.drawGround(g, 256, 170, b);
-      g.generateTexture('ground_' + b.key, 256, 170); g.clear();
-    });
 
     g.destroy();
 
@@ -515,51 +510,5 @@ class BootScene extends Phaser.Scene {
     g.fillStyle(0xffffff, 0.25); g.fillCircle(8, 8, 7);
     g.fillStyle(0xffffff, 0.6);  g.fillCircle(8, 8, 4.5);
     g.fillStyle(0xffffff, 1);    g.fillCircle(8, 8, 2.6);
-  }
-
-  drawCloud(g) {
-    g.fillStyle(0xffffff, 1);
-    g.fillCircle(38, 46, 26); g.fillCircle(72, 32, 32); g.fillCircle(106, 44, 27);
-    g.fillRect(38, 44, 68, 26);
-    g.fillStyle(0xeaf4ff, 1); g.fillRect(38, 60, 70, 10);
-  }
-
-  drawStar(g) {
-    g.fillStyle(0xffffff, 1);
-    g.fillPoints([
-      { x: 6, y: 0 }, { x: 7.4, y: 4.6 }, { x: 12, y: 6 }, { x: 7.4, y: 7.4 },
-      { x: 6, y: 12 }, { x: 4.6, y: 7.4 }, { x: 0, y: 6 }, { x: 4.6, y: 4.6 },
-    ], true);
-  }
-
-  drawGlow(g) {
-    for (let i = 0; i < 32; i++) {
-      g.fillStyle(0xffffff, 0.038);
-      g.fillCircle(64, 64, 64 - i * 2);
-    }
-  }
-
-  drawHills(g, w, h, color, periods, amp) {
-    g.fillStyle(color, 1);
-    g.beginPath();
-    g.moveTo(0, h);
-    for (let x = 0; x <= w; x += 8) {
-      const t = (x / w) * Math.PI * 2 * periods;
-      const bump = Math.sin(t) * 0.6 + Math.sin(t * 2 + 1) * 0.4;
-      g.lineTo(x, h * 0.55 - bump * amp);
-    }
-    g.lineTo(w, h);
-    g.closePath();
-    g.fillPath();
-  }
-
-  drawGround(g, w, h, biome) {
-    g.fillStyle(biome.ground, 1);     g.fillRect(0, 0, w, h);
-    g.fillStyle(biome.groundEdge, 1); g.fillRect(0, 0, w, 11);
-    g.fillStyle(biome.groundDark, 1); g.fillRect(0, 11, w, 4);
-    const dots = [[30, 46], [88, 70], [150, 40], [210, 84], [120, 120], [60, 100], [200, 130]];
-    g.fillStyle(biome.groundDark, 1);
-    dots.forEach(([x, y]) => g.fillCircle(x, y, 6));
-    g.fillStyle(biome.groundDark, 0.4); g.fillRect(0, 90, w, 3);
   }
 }

@@ -54,47 +54,33 @@ const UI = {
     return t;
   },
 
-  /* builds a full-screen scenic background for a biome (sky, sun, hills,
-     ground, clouds). Returns the scrolling layers so a scene can animate them. */
+  /* builds the layered cave backdrop for a biome from the parallax art
+     (background1-4), tinted to match the world. Returns { layers } — each
+     layer is a tileSprite carrying a `parallax` factor a scene can scroll. */
   scenicBackground(scene, biome) {
-    const W = CONFIG.WIDTH, H = CONFIG.HEIGHT, GY = CONFIG.GROUND_Y;
-    const layer = {};
+    const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
+    const tint = biome.caveTint || 0xffffff;
 
-    const sky = scene.add.graphics().setScrollFactor(0);
-    sky.fillGradientStyle(biome.skyTop, biome.skyTop, biome.skyBottom, biome.skyBottom, 1);
-    sky.fillRect(0, 0, W, H);
+    /* far -> near: haze, mid wall, cave silhouettes, near stalactites/floor */
+    const defs = [
+      { key: 'bg1', parallax: 0.08, depth: -100 },
+      { key: 'bg2', parallax: 0.20, depth: -99  },
+      { key: 'bg3', parallax: 0.42, depth: -98  },
+      { key: 'bg4', parallax: 0.68, depth: -97  },
+    ];
 
-    if (biome.night) {
-      for (let i = 0; i < 42; i++) {
-        const s = scene.add.image(Math.random() * W, Math.random() * GY * 0.85, 'star')
-          .setAlpha(0.3 + Math.random() * 0.6)
-          .setScale(0.4 + Math.random())
-          .setScrollFactor(0);
-        scene.tweens.add({ targets: s, alpha: 0.12,
-          duration: 700 + Math.random() * 1700, yoyo: true, repeat: -1 });
-      }
-    }
+    const layers = defs.map((d) => {
+      const ts = scene.add.tileSprite(0, 0, W, H, d.key)
+        .setOrigin(0, 0)
+        .setScrollFactor(0)
+        .setDepth(d.depth)
+        .setTileScale(CONFIG.BG_FILL, CONFIG.BG_FILL)
+        .setTint(tint);
+      ts.parallax = d.parallax;
+      return ts;
+    });
 
-    layer.sunGlow = scene.add.image(W - 175, 128, 'glow')
-      .setScale(2.7).setTint(biome.sun).setAlpha(0.85).setScrollFactor(0);
-    layer.sun = scene.add.circle(W - 175, 128, 42, biome.sun, 1).setScrollFactor(0);
-
-    layer.hillFar = scene.add.tileSprite(W / 2, GY + 8, W, 220, 'hillfar_' + biome.key)
-      .setOrigin(0.5, 1).setAlpha(0.9).setScrollFactor(0);
-    layer.hillNear = scene.add.tileSprite(W / 2, GY + 24, W, 250, 'hillnear_' + biome.key)
-      .setOrigin(0.5, 1).setScrollFactor(0);
-    layer.ground = scene.add.tileSprite(W / 2, GY, W, H - GY + 6, 'ground_' + biome.key)
-      .setOrigin(0.5, 0).setScrollFactor(0);
-
-    layer.clouds = [];
-    const cloudTint = biome.night ? 0x70609e : 0xffffff;
-    for (let i = 0; i < 4; i++) {
-      layer.clouds.push(
-        scene.add.image(Math.random() * W, 46 + Math.random() * 150, 'cloud')
-          .setScale(0.45 + Math.random() * 0.6).setAlpha(0.85).setTint(cloudTint)
-          .setScrollFactor(0));
-    }
-    return layer;
+    return { layers: layers };
   },
 
   /* an interactive rounded button with hover / press feedback.
