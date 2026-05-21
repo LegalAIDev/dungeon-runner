@@ -6,6 +6,7 @@
   --accent: #4c6fff;
   --good: #1c9d62;
   --bad: #c93b3b;
+  --game-bottom-pad: calc(env(safe-area-inset-bottom, 0px) + 24px);
 }
 
 * { box-sizing: border-box; }
@@ -83,5 +84,14 @@ html, body { width: 100%; min-height: 100%; overflow-x: hidden; }
 .app { max-width: none; margin: 0; padding: 0; width: 100%; height: 100%; position: relative; }
 .hud { position: absolute; top: 0.75rem; left: 0.75rem; right: 0.75rem; z-index: 10; background: rgba(255,255,255,.9); backdrop-filter: blur(4px); }
 .game-wrap { margin-top: 0; width: 100%; height: 100%; }
-#game { display: block; width: 100vw; height: 100dvh; min-height: 100vh; border-radius: 0; box-shadow: none; touch-action: none; }
+#game {
+  display: block;
+  width: 100vw;
+  height: calc(100dvh - var(--game-bottom-pad));
+  min-height: calc(100vh - var(--game-bottom-pad));
+  margin-bottom: var(--game-bottom-pad);
+  border-radius: 0;
+  box-shadow: none;
+  touch-action: none;
+}
 .controls, .touch-controls, .store { display: none !important; }
