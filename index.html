@@ -2,48 +2,44 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Math Runner (Grade 5)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#1a1140" />
+  <title>Math Runner — a grade 5 math adventure</title>
+  <meta name="description" content="Math Runner: dash, jump and slide through four worlds, collect coins, and solve grade-5 math problems to power up your runner." />
+  <meta property="og:title" content="Math Runner" />
+  <meta property="og:description" content="Dash through four worlds and solve math problems to upgrade your runner!" />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%235b6ef5'/%3E%3Ctext x='16' y='24' font-size='22' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'%3E%2B%3C/text%3E%3C/svg%3E" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <main class="app">
-    <header class="hud">
-      <div>Distance: <span id="distance">0</span> m</div>
-      <div>Coins: <span id="coins">0</span></div>
-      <div>Lives: <span id="lives">3</span></div>
-    </header>
+  <div id="game" role="application" aria-label="Math Runner game">
+    <p class="loading">Loading Math Runner…</p>
+  </div>
+  <noscript>
+    <p style="color:#fff;text-align:center;font-family:sans-serif">
+      Math Runner needs JavaScript turned on to play.
+    </p>
+  </noscript>
 
-    <section class="game-wrap">
-      <canvas id="game" width="900" height="350" aria-label="Math runner game"></canvas>
-      <p class="controls">Controls: <kbd>Space</kbd>/<kbd>↑</kbd> jump, <kbd>↓</kbd> slide, <kbd>P</kbd> pause.</p>
-      <div class="touch-controls" aria-label="Touch controls">
-        <button id="jump-btn" class="touch-btn primary" type="button">Jump</button>
-        <button id="slide-btn" class="touch-btn" type="button">Slide</button>
-        <button id="pause-btn" class="touch-btn" type="button">Pause</button>
-      </div>
-    </section>
+  <!-- Game engine (vendored locally so it works on any network) -->
+  <script src="lib/phaser.min.js"></script>
 
-    <section class="store">
-      <h2>Upgrade Store</h2>
-      <p>Buy upgrades by spending coins and solving a grade-5 math problem.</p>
-      <div id="store-items" class="store-items"></div>
-    </section>
-  </main>
+  <!-- Game data and helpers -->
+  <script src="src/config.js"></script>
+  <script src="src/mathProblems.js"></script>
+  <script src="src/audio.js"></script>
+  <script src="src/ui.js"></script>
 
-  <dialog id="math-dialog">
-    <form method="dialog" id="math-form">
-      <h3 id="math-title">Math Challenge</h3>
-      <p id="math-question"></p>
-      <input id="math-answer" type="number" step="any" required autocomplete="off" />
-      <p id="math-feedback" class="feedback"></p>
-      <menu>
-        <button value="cancel" id="cancel-btn">Cancel</button>
-        <button value="default" id="submit-btn">Submit</button>
-      </menu>
-    </form>
-  </dialog>
+  <!-- Scenes (one screen of the game each) -->
+  <script src="src/scenes/BootScene.js"></script>
+  <script src="src/scenes/MenuScene.js"></script>
+  <script src="src/scenes/GameScene.js"></script>
+  <script src="src/scenes/HudScene.js"></script>
+  <script src="src/scenes/ShopScene.js"></script>
+  <script src="src/scenes/GameOverScene.js"></script>
 
-  <script src="app.js"></script>
+  <!-- Starts everything -->
+  <script src="src/main.js"></script>
 </body>
 </html>
