@@ -14,10 +14,13 @@ const PlayerState = (function () {
     return p;
   }
 
+  // DEV MODE: start with unlimited coins/stars for testing
+  const DEV_UNLIMITED = true;
+
   function defaultState() {
     return {
-      coins: 0,
-      mathStars: 0,
+      coins: DEV_UNLIMITED ? 999999 : 0,
+      mathStars: DEV_UNLIMITED ? 999999 : 0,
 
       inventory: {
         consumables: {},                 // { itemId: quantity }
@@ -83,9 +86,9 @@ const PlayerState = (function () {
 
     /* ---- currency -------------------------------------------------------- */
     addCoins(n)   { this.data.coins = Math.max(0, this.data.coins + Math.round(n)); this.save(); },
-    spendCoins(n) { this.data.coins = Math.max(0, this.data.coins - n); this.save(); },
+    spendCoins(n) { this.data.coins = DEV_UNLIMITED ? 999999 : Math.max(0, this.data.coins - n); this.save(); },
     addStars(n)   { this.data.mathStars = Math.max(0, this.data.mathStars + Math.round(n)); this.save(); },
-    spendStars(n) { this.data.mathStars = Math.max(0, this.data.mathStars - n); this.save(); },
+    spendStars(n) { this.data.mathStars = DEV_UNLIMITED ? 999999 : Math.max(0, this.data.mathStars - n); this.save(); },
 
     /* ---- unlocks --------------------------------------------------------- */
     owns(kind, id) { return this.data.unlocks[kind].indexOf(id) !== -1; },
