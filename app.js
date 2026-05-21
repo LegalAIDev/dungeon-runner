@@ -12,6 +12,9 @@ const questionEl = document.getElementById('math-question');
 const answerEl = document.getElementById('math-answer');
 const feedbackEl = document.getElementById('math-feedback');
 const submitBtn = document.getElementById('submit-btn');
+const jumpBtn = document.getElementById('jump-btn');
+const slideBtn = document.getElementById('slide-btn');
+const pauseBtn = document.getElementById('pause-btn');
 
 const state = {
   t: 0,
@@ -113,16 +116,38 @@ function closeDialog() {
   state.paused = false;
 }
 
-window.addEventListener('keydown', (e) => {
-  if (e.key.toLowerCase() === 'p') state.paused = !state.paused;
+function jump() {
   if (state.paused || dialog.open) return;
-  if ((e.key === ' ' || e.key === 'ArrowUp') && state.player.onGround) {
+  if (state.player.onGround) {
     state.player.vy = -state.jumpPower;
     state.player.onGround = false;
   }
-  if (e.key === 'ArrowDown') state.player.sliding = true;
+}
+
+function setSliding(isSliding) {
+  if (state.paused || dialog.open) return;
+  state.player.sliding = isSliding;
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() === 'p') state.paused = !state.paused;
+  if (e.key === ' ' || e.key === 'ArrowUp') jump();
+  if (e.key === 'ArrowDown') setSliding(true);
 });
-window.addEventListener('keyup', (e) => { if (e.key === 'ArrowDown') state.player.sliding = false; });
+window.addEventListener('keyup', (e) => { if (e.key === 'ArrowDown') setSliding(false); });
+
+if (jumpBtn && slideBtn && pauseBtn) {
+  jumpBtn.addEventListener('click', jump);
+  slideBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    setSliding(true);
+  });
+  const stopSlide = () => setSliding(false);
+  slideBtn.addEventListener('pointerup', stopSlide);
+  slideBtn.addEventListener('pointercancel', stopSlide);
+  slideBtn.addEventListener('pointerleave', stopSlide);
+  pauseBtn.addEventListener('click', () => { state.paused = !state.paused; });
+}
 
 function spawnObstacle() {
   const h = rand(24, 55);
