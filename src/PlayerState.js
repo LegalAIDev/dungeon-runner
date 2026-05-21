@@ -71,6 +71,10 @@ const PlayerState = (function () {
       } catch (e) {
         this.data = defaultState();      // corrupted save → start fresh
       }
+      if (DEV_UNLIMITED) {
+        this.data.coins = 999999;
+        this.data.mathStars = 999999;
+      }
     },
 
     save() {
