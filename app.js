@@ -26,6 +26,7 @@ const state = {
   gravity: 0.7,
   jumpPower: 12,
   coinMultiplier: 1,
+  shopBonus: 0,
   invulnUntil: 0,
   player: { x: 90, y: 270, w: 34, h: 52, vy: 0, onGround: true, sliding: false },
   obstacles: [],
@@ -48,6 +49,7 @@ const upgrades = [
   { id: 'shoes', name: 'Speed Shoes', cost: 25, tier: 1, desc: '+8% run speed', bought: 0, apply: () => state.speed *= 1.08 },
   { id: 'double', name: 'Jump Boost', cost: 40, tier: 2, desc: '+2 jump power', bought: 0, apply: () => state.jumpPower += 2 },
   { id: 'magnet', name: 'Coin Multiplier', cost: 60, tier: 3, desc: '+25% coins', bought: 0, apply: () => state.coinMultiplier += 0.25 },
+  { id: 'bonus', name: 'Shop Bonus', cost: 70, tier: 2, desc: '+1 coin per pickup', bought: 0, apply: () => state.shopBonus += 1 },
   { id: 'round-jump', name: 'Round Jump Juice', cost: 35, tier: 2, desc: '+4 jump power this round', bought: 0, apply: () => state.roundBonuses.jumpBoost += 1 },
   { id: 'round-coins', name: 'Round Coin Rush', cost: 45, tier: 2, desc: '+50% coin value this round', bought: 0, apply: () => state.roundBonuses.coinRush += 1 },
   { id: 'round-life', name: 'Round Heart', cost: 55, tier: 2, desc: '+1 life this round (max 5)', bought: 0, apply: () => {
@@ -325,7 +327,7 @@ function update() {
       const streakStep = Math.floor(state.coinStreak / 5);
       const comboMult = now < state.comboBonusUntil ? 1.5 : 1;
       const roundCoinMult = 1 + (state.roundBonuses.coinRush * 0.5);
-      const earned = Math.max(1, Math.round((1 + streakStep) * state.coinMultiplier * roundCoinMult * comboMult));
+      const earned = Math.max(1, Math.round((1 + streakStep) * state.coinMultiplier * roundCoinMult * comboMult)) + state.shopBonus;
       state.coins += earned;
       saveProgress();
     }
