@@ -53,6 +53,15 @@ class GameScene extends Phaser.Scene {
     this.setupInput();
     this.buildConsumableSlots();
 
+    /* traversable level: the camera follows the player through a long stage */
+    this.waveAnchorX = CONFIG.WAVE_FIRST_X;
+    this.levelLength = CONFIG.WAVE_FIRST_X +
+      (this.waves.length - 1) * CONFIG.WAVE_SPACING + CONFIG.WIDTH;
+    const cam = this.cameras.main;
+    cam.setBounds(0, 0, this.levelLength, CONFIG.HEIGHT);
+    cam.startFollow(this.player, true, 0.12, 1);
+    cam.setFollowOffset(-CONFIG.CAMERA_OFFSET, 0);
+
     /* companion: Wise Owl grants a shield each level */
     if (this.companion && this.companion.id === 'owl') this.shieldCharges += 1;
 
@@ -125,15 +134,17 @@ class GameScene extends Phaser.Scene {
     if (this.armor.autoBlock) this.shieldCharges = Math.max(this.shieldCharges, 1);
 
     const wave = this.waves[this.waveIndex];
+    const anchorX = this.waveAnchorX;
+    this.waveAnchorX += CONFIG.WAVE_SPACING;
     if (wave.boss) {
       this.enemiesToSpawn = 0;
-      this.spawnBoss(wave.boss);
+      this.spawnBoss(wave.boss, anchorX);
     } else {
       this.enemiesToSpawn = wave.length;
       wave.forEach((typeKey, i) => {
         this.time.delayedCall(i * 360, () => {
           this.enemiesToSpawn--;
-          if (!this.finished) this.spawnEnemy(typeKey, 1000 + i * 70);
+          if (!this.finished) this.spawnEnemy(typeKey, anchorX + i * 64);
         });
       });
     }
@@ -146,9 +157,9 @@ class GameScene extends Phaser.Scene {
     return this.addEnemySprite(cfg, x, 'foe_' + typeKey);
   }
 
-  spawnBoss(bossKey) {
+  spawnBoss(bossKey, x) {
     const cfg = EnemyFactory.makeBoss(bossKey, this.worldIndex);
-    const e = this.addEnemySprite(cfg, 980, 'boss_' + bossKey);
+    const e = this.addEnemySprite(cfg, x, 'boss_' + bossKey);
     e.phase = 1;
     e.spawnedAdds = false;
     e.enraged = false;
@@ -165,10 +176,11 @@ class GameScene extends Phaser.Scene {
     e.range = cfg.range;
     e.behaviour = cfg.behaviour;
     e.facing = -1;
-    e.state = 'walkin';
+    e.state = 'idle';
     e.stateAt = this.clock;
     e.struck = false;
     e.staggerDur = 200;
+    e.staggerImmuneUntil = 0;
     e.attackReadyAt = this.clock + 600;
     e.kbVx = 0;
     e.frozenUntil = 0;
@@ -211,8 +223,10 @@ class GameScene extends Phaser.Scene {
   }
 
   scrollBackground(dt) {
-    this.bg.hillFar.tilePositionX += 4 * dt;
-    this.bg.hillNear.tilePositionX += 9 * dt;
+    const sx = this.cameras.main.scrollX;
+    this.bg.hillFar.tilePositionX  = sx * 0.15;
+    this.bg.hillNear.tilePositionX = sx * 0.35;
+    this.bg.ground.tilePositionX   = sx;
     this.bg.clouds.forEach((cl) => {
       cl.x -= 7 * dt;
       if (cl.x < -100) cl.x = CONFIG.WIDTH + 100;
@@ -243,7 +257,8 @@ class GameScene extends Phaser.Scene {
       p.x += mx * speed * dt;
       if (mx !== 0) p.facing = mx;
     }
-    p.x = Phaser.Math.Clamp(p.x, CONFIG.ARENA_LEFT, CONFIG.ARENA_RIGHT);
+    p.x = Phaser.Math.Clamp(p.x, CONFIG.ARENA_LEFT,
+                            this.levelLength - CONFIG.ARENA_LEFT);
 
     /* vertical motion (jump arc) */
     if (!p.onGround) {
@@ -401,11 +416,16 @@ class GameScene extends Phaser.Scene {
     this.hitSpark(e.x, e.y - e.height * 0.5);
     this.doHitStop();
 
-    e.kbVx = this.player.facing * (type === 'heavy' ? 240 : 120);
-    if (!e.isBoss) {
+    /* Light attacks only flinch (visual) — the enemy keeps advancing.
+       Heavy attacks knock back + stagger, but a post-stagger immunity
+       window stops chained heavies from perma-locking an enemy. */
+    const now = this.clock;
+    if (type === 'heavy' && !e.isBoss && now >= e.staggerImmuneUntil) {
+      e.kbVx = this.player.facing * 240;
       e.state = 'stagger';
-      e.stateAt = this.clock;
-      e.staggerDur = type === 'heavy' ? 320 : 200;
+      e.stateAt = now;
+      e.staggerDur = 320;
+      e.staggerImmuneUntil = now + e.staggerDur + 700;
     }
     this.tweens.add({ targets: e, scaleX: 1.18, scaleY: 0.86, duration: 60, yoyo: true });
 
@@ -475,17 +495,18 @@ class GameScene extends Phaser.Scene {
     if (Math.abs(e.kbVx) > 4) {
       e.x += e.kbVx * dt;
       e.kbVx *= 0.84;
-      e.x = Phaser.Math.Clamp(e.x, CONFIG.ARENA_LEFT, CONFIG.WIDTH + 120);
+      e.x = Phaser.Math.Clamp(e.x, CONFIG.ARENA_LEFT, this.levelLength);
     }
 
     if (e.isBoss) this.updateBossPhase(e, now);
     const frozen = now < e.frozenUntil;
 
     switch (e.state) {
-      case 'walkin':
-        e.x -= e.speed * 0.85 * dt;
-        if (e.x <= CONFIG.ARENA_RIGHT - 30) { e.state = 'chase'; e.stateAt = now; }
+      case 'idle': {
+        const aggro = CONFIG.AGGRO_RANGE + (e.isBoss ? 220 : 0);
+        if (dist <= aggro) { e.state = 'chase'; e.stateAt = now; }
         break;
+      }
       case 'chase':
         if (!frozen) this.enemyChase(e, dt, now, dist);
         break;
@@ -731,8 +752,9 @@ class GameScene extends Phaser.Scene {
     this.runCoins += gain;
     PlayerState.addCoins(gain);
     SFX.coin();
-    this.tweens.add({ targets: c, x: CONFIG.WIDTH - 80, y: 36,
-      scale: 0.4, duration: 360, ease: 'Cubic.in',
+    const cam = this.cameras.main;
+    this.tweens.add({ targets: c, x: cam.scrollX + CONFIG.WIDTH - 80,
+      y: cam.scrollY + 36, scale: 0.4, duration: 360, ease: 'Cubic.in',
       onComplete: () => c.destroy() });
   }
 
@@ -768,7 +790,8 @@ class GameScene extends Phaser.Scene {
     if (this.waveDamageless && this.waveIndex >= 0 && !this.waves[this.waveIndex].boss) {
       this.runCoins += 100;
       PlayerState.addCoins(100);
-      this.floatText(CONFIG.WIDTH / 2, 210, 'PERFECT WAVE  +100', '#ffce3a', 30);
+      this.floatText(this.cameras.main.scrollX + CONFIG.WIDTH / 2, 210,
+        'PERFECT WAVE  +100', '#ffce3a', 30);
       DailyQuests.progress('perfectWave', 1);
       SFX.levelUp();
     }
@@ -836,7 +859,7 @@ class GameScene extends Phaser.Scene {
     const t = this.add.text(CONFIG.WIDTH / 2, 168, str, {
       fontFamily: UI.FONT, fontSize: '44px', color: '#ffd23f',
       fontStyle: 'bold', stroke: '#3a2150', strokeThickness: 9,
-    }).setOrigin(0.5).setDepth(700).setScale(0.5).setAlpha(0);
+    }).setOrigin(0.5).setDepth(700).setScale(0.5).setAlpha(0).setScrollFactor(0);
     this.tweens.add({ targets: t, scale: 1, alpha: 1, duration: 220, ease: 'Back.out' });
     this.tweens.add({ targets: t, alpha: 0, duration: 320, delay: 1100,
       onComplete: () => t.destroy() });
@@ -848,7 +871,7 @@ class GameScene extends Phaser.Scene {
     if (this.paused) { this.closePause(); return; }
     this.paused = true;
     const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
-    const c = this.add.container(0, 0).setDepth(2000);
+    const c = this.add.container(0, 0).setDepth(2000).setScrollFactor(0);
     c.add(this.add.rectangle(0, 0, W, H, 0x000000, 0.66).setOrigin(0).setInteractive());
     c.add(UI.panel(this, W / 2, H / 2, 440, 320, UI.COLORS.panel,
       { stroke: UI.COLORS.accent, strokeWidth: 4 }));

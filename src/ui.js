@@ -60,7 +60,7 @@ const UI = {
     const W = CONFIG.WIDTH, H = CONFIG.HEIGHT, GY = CONFIG.GROUND_Y;
     const layer = {};
 
-    const sky = scene.add.graphics();
+    const sky = scene.add.graphics().setScrollFactor(0);
     sky.fillGradientStyle(biome.skyTop, biome.skyTop, biome.skyBottom, biome.skyBottom, 1);
     sky.fillRect(0, 0, W, H);
 
@@ -68,29 +68,31 @@ const UI = {
       for (let i = 0; i < 42; i++) {
         const s = scene.add.image(Math.random() * W, Math.random() * GY * 0.85, 'star')
           .setAlpha(0.3 + Math.random() * 0.6)
-          .setScale(0.4 + Math.random());
+          .setScale(0.4 + Math.random())
+          .setScrollFactor(0);
         scene.tweens.add({ targets: s, alpha: 0.12,
           duration: 700 + Math.random() * 1700, yoyo: true, repeat: -1 });
       }
     }
 
     layer.sunGlow = scene.add.image(W - 175, 128, 'glow')
-      .setScale(2.7).setTint(biome.sun).setAlpha(0.85);
-    layer.sun = scene.add.circle(W - 175, 128, 42, biome.sun, 1);
+      .setScale(2.7).setTint(biome.sun).setAlpha(0.85).setScrollFactor(0);
+    layer.sun = scene.add.circle(W - 175, 128, 42, biome.sun, 1).setScrollFactor(0);
 
     layer.hillFar = scene.add.tileSprite(W / 2, GY + 8, W, 220, 'hillfar_' + biome.key)
-      .setOrigin(0.5, 1).setAlpha(0.9);
+      .setOrigin(0.5, 1).setAlpha(0.9).setScrollFactor(0);
     layer.hillNear = scene.add.tileSprite(W / 2, GY + 24, W, 250, 'hillnear_' + biome.key)
-      .setOrigin(0.5, 1);
+      .setOrigin(0.5, 1).setScrollFactor(0);
     layer.ground = scene.add.tileSprite(W / 2, GY, W, H - GY + 6, 'ground_' + biome.key)
-      .setOrigin(0.5, 0);
+      .setOrigin(0.5, 0).setScrollFactor(0);
 
     layer.clouds = [];
     const cloudTint = biome.night ? 0x70609e : 0xffffff;
     for (let i = 0; i < 4; i++) {
       layer.clouds.push(
         scene.add.image(Math.random() * W, 46 + Math.random() * 150, 'cloud')
-          .setScale(0.45 + Math.random() * 0.6).setAlpha(0.85).setTint(cloudTint));
+          .setScale(0.45 + Math.random() * 0.6).setAlpha(0.85).setTint(cloudTint)
+          .setScrollFactor(0));
     }
     return layer;
   },

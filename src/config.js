@@ -15,7 +15,12 @@ const CONFIG = {
 
   PLAYER_SPEED: 270,        // player walk speed (px/s)
   ARENA_LEFT: 64,           // left wall fighters cannot pass
-  ARENA_RIGHT: 896,         // right wall
+  ARENA_RIGHT: 896,         // right edge of the starting view
+
+  WAVE_SPACING: 760,        // world distance between successive wave anchors
+  WAVE_FIRST_X: 820,        // world x of the first wave's lead enemy
+  AGGRO_RANGE: 520,         // how close the player gets before an enemy wakes
+  CAMERA_OFFSET: 160,       // keeps the player in the left third of the view
 
   HIT_STOP_MS: 70,          // freeze frame on a landed strike
 
