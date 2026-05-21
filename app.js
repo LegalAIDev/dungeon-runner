@@ -40,6 +40,19 @@ const upgrades = [
   { id: 'shield', name: 'Shield', cost: 50, tier: 2, desc: '1 hit protection (10s)', bought: 0, apply: () => state.invulnUntil = performance.now() + 10000 },
 ];
 
+
+function resizeCanvasToViewport() {
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.max(320, window.innerWidth);
+  const h = Math.max(240, window.innerHeight);
+  canvas.width = Math.floor(w * dpr);
+  canvas.height = Math.floor(h * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+window.addEventListener('resize', resizeCanvasToViewport);
+resizeCanvasToViewport();
+
 function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
 function generateProblem(tier) {
@@ -149,12 +162,47 @@ if (jumpBtn && slideBtn && pauseBtn) {
   pauseBtn.addEventListener('click', () => { state.paused = !state.paused; });
 }
 
+
+let pressStart = 0;
+let holdActivated = false;
+let pointerActive = false;
+
+canvas.addEventListener('pointerdown', (e) => {
+  if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+  e.preventDefault();
+  pressStart = performance.now();
+  holdActivated = false;
+  pointerActive = true;
+  setTimeout(() => {
+    if (pointerActive && performance.now() - pressStart >= 220) {
+      holdActivated = true;
+      setSliding(true);
+    }
+  }, 220);
+});
+
+const endPointerAction = (e) => {
+  if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+  e.preventDefault();
+  pointerActive = false;
+  setSliding(false);
+  if (!holdActivated && performance.now() - pressStart < 220) jump();
+};
+
+canvas.addEventListener('pointerup', endPointerAction);
+canvas.addEventListener('pointercancel', endPointerAction);
+canvas.addEventListener('pointerleave', endPointerAction);
+
+function groundY() { return canvas.height / (window.devicePixelRatio || 1) - 30; }
+
 function spawnObstacle() {
   const h = rand(24, 55);
-  state.obstacles.push({ x: canvas.width + 20, y: 320 - h, w: rand(18, 30), h });
+  state.obstacles.push({ x: canvas.width / (window.devicePixelRatio || 1) + 20, y: groundY() - h, w: rand(18, 30), h });
 }
 function spawnCoin() {
-  state.pickups.push({ x: canvas.width + 20, y: rand(180, 290), r: 8 });
+  const topBand = Math.max(110, groundY() - 170);
+  const lowBand = Math.max(topBand + 10, groundY() - 30);
+  state.pickups.push({ x: canvas.width / (window.devicePixelRatio || 1) + 20, y: rand(topBand, lowBand), r: 8 });
 }
 function overlaps(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
@@ -172,7 +220,7 @@ function update() {
   const p = state.player;
   p.vy += state.gravity;
   p.y += p.vy;
-  const floorY = 320 - (p.sliding ? 28 : p.h);
+  const floorY = groundY() - (p.sliding ? 28 : p.h);
   if (p.y > floorY) {
     p.y = floorY;
     p.vy = 0;
@@ -227,21 +275,23 @@ function drawSky() {
 }
 
 function drawGround() {
-  const hillOffset = (state.distance * 0.2) % canvas.width;
+  const width = canvas.width / (window.devicePixelRatio || 1);
+  const gY = groundY();
+  const hillOffset = (state.distance * 0.2) % width;
   ctx.fillStyle = '#98db87';
   ctx.beginPath();
-  ctx.moveTo(-hillOffset, 320);
-  for (let i = -1; i < 6; i++) ctx.quadraticCurveTo(i * 200 + 100 - hillOffset, 250, i * 200 + 200 - hillOffset, 320);
-  ctx.lineTo(canvas.width, 350);
-  ctx.lineTo(0, 350);
+  ctx.moveTo(-hillOffset, gY);
+  for (let i = -1; i < 6; i++) ctx.quadraticCurveTo(i * 200 + 100 - hillOffset, gY - 70, i * 200 + 200 - hillOffset, gY);
+  ctx.lineTo(width, canvas.height / (window.devicePixelRatio || 1));
+  ctx.lineTo(0, canvas.height / (window.devicePixelRatio || 1));
   ctx.closePath();
   ctx.fill();
 
-  const ground = ctx.createLinearGradient(0, 320, 0, 350);
+  const ground = ctx.createLinearGradient(0, gY, 0, canvas.height / (window.devicePixelRatio || 1));
   ground.addColorStop(0, '#6bc85d');
   ground.addColorStop(1, '#3f9e3d');
   ctx.fillStyle = ground;
-  ctx.fillRect(0, 320, canvas.width, 30);
+  ctx.fillRect(0, gY, width, 30);
 }
 
 function drawPlayer(p) {
@@ -299,7 +349,9 @@ function drawCoin(c) {
 }
 
 function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const width = canvas.width / (window.devicePixelRatio || 1);
+  const height = canvas.height / (window.devicePixelRatio || 1);
+  ctx.clearRect(0, 0, width, height);
   drawSky();
   drawGround();
 
@@ -311,10 +363,10 @@ function draw() {
 
   if (state.paused) {
     ctx.fillStyle = 'rgba(0,0,0,.4)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, width, height);
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 36px sans-serif';
-    ctx.fillText(dialog.open ? 'Math Time!' : 'Paused', canvas.width / 2 - 90, canvas.height / 2);
+    ctx.fillText(dialog.open ? 'Math Time!' : 'Paused', width / 2 - 90, height / 2);
   }
 }
 
