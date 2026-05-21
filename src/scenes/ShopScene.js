@@ -107,8 +107,7 @@ class ShopScene extends Phaser.Scene {
         fontFamily: UI.FONT, fontSize: '21px', color: '#ffffff', fontStyle: 'bold',
       }).setOrigin(0, 0.5));
       this.content.add(this.add.text(x - 168, y + 6,
-        '+' + topic.starsPerCorrect + ' ⭐ per correct  ·  ' +
-        topic.timerSeconds + 's each', {
+        '+' + topic.starsPerCorrect + ' ⭐ per correct', {
         fontFamily: UI.FONT, fontSize: '15px', color: '#cdb8ff',
       }).setOrigin(0, 0.5));
       const hist = PlayerState.data.mathLabStats.topicHistory[topic.id];
