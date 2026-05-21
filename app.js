@@ -35,6 +35,11 @@ const state = {
   mathStreak: 0,
   lastCoinAt: 0,
   comboBonusUntil: 0,
+  roundBonuses: {
+    jumpBoost: 0,
+    coinRush: 0,
+    extraLife: 0,
+  },
 };
 
 const SAVE_KEY = 'mathRunnerProgressV1';
@@ -43,6 +48,12 @@ const upgrades = [
   { id: 'shoes', name: 'Speed Shoes', cost: 25, tier: 1, desc: '+8% run speed', bought: 0, apply: () => state.speed *= 1.08 },
   { id: 'double', name: 'Jump Boost', cost: 40, tier: 2, desc: '+2 jump power', bought: 0, apply: () => state.jumpPower += 2 },
   { id: 'magnet', name: 'Coin Multiplier', cost: 60, tier: 3, desc: '+25% coins', bought: 0, apply: () => state.coinMultiplier += 0.25 },
+  { id: 'round-jump', name: 'Round Jump Juice', cost: 35, tier: 2, desc: '+4 jump power this round', bought: 0, apply: () => state.roundBonuses.jumpBoost += 1 },
+  { id: 'round-coins', name: 'Round Coin Rush', cost: 45, tier: 2, desc: '+50% coin value this round', bought: 0, apply: () => state.roundBonuses.coinRush += 1 },
+  { id: 'round-life', name: 'Round Heart', cost: 55, tier: 2, desc: '+1 life this round (max 5)', bought: 0, apply: () => {
+    state.roundBonuses.extraLife += 1;
+    state.lives = Math.min(5, state.lives + 1);
+  } },
   { id: 'shield', name: 'Shield', cost: 50, tier: 2, desc: '1 hit protection (10s)', bought: 0, apply: () => state.invulnUntil = performance.now() + 10000 },
 ];
 
@@ -176,7 +187,8 @@ function closeDialog() {
 function jump() {
   if (state.paused || dialog.open) return;
   if (state.player.onGround) {
-    state.player.vy = -state.jumpPower;
+    const roundJumpBoost = state.roundBonuses.jumpBoost * 4;
+    state.player.vy = -(state.jumpPower + roundJumpBoost);
     state.player.onGround = false;
   }
 }
@@ -286,7 +298,18 @@ function update() {
       if (state.lives <= 0) {
         const finalDistance = Math.floor(state.distance);
         const openShop = window.confirm(`Game over! Distance: ${finalDistance}m. Open shop now?`);
-        Object.assign(state, { distance: 0, lives: 3, speed: 4, obstacles: [], pickups: [], coinStreak: 0, mathStreak: 0, comboBonusUntil: 0, lastCoinAt: 0 });
+        Object.assign(state, {
+          distance: 0,
+          lives: 3,
+          speed: 4,
+          obstacles: [],
+          pickups: [],
+          coinStreak: 0,
+          mathStreak: 0,
+          comboBonusUntil: 0,
+          lastCoinAt: 0,
+          roundBonuses: { jumpBoost: 0, coinRush: 0, extraLife: 0 },
+        });
         if (openShop) state.paused = true;
       }
       break;
@@ -301,7 +324,8 @@ function update() {
       state.lastCoinAt = now;
       const streakStep = Math.floor(state.coinStreak / 5);
       const comboMult = now < state.comboBonusUntil ? 1.5 : 1;
-      const earned = Math.max(1, Math.round((1 + streakStep) * state.coinMultiplier * comboMult));
+      const roundCoinMult = 1 + (state.roundBonuses.coinRush * 0.5);
+      const earned = Math.max(1, Math.round((1 + streakStep) * state.coinMultiplier * roundCoinMult * comboMult));
       state.coins += earned;
       saveProgress();
     }
@@ -425,6 +449,15 @@ function draw() {
     ctx.font = 'bold 18px sans-serif';
     ctx.fillText(`Coin streak: ${state.coinStreak}`, 26, 40);
     ctx.fillText(`Math streak: ${state.mathStreak}`, 26, 63);
+  }
+
+
+  if (state.roundBonuses.jumpBoost || state.roundBonuses.coinRush || state.roundBonuses.extraLife) {
+    ctx.fillStyle = 'rgba(0,0,0,.32)';
+    ctx.fillRect(16, 78, 320, 34);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText(`Round buffs → Jump +${state.roundBonuses.jumpBoost * 4}, Coin +${state.roundBonuses.coinRush * 50}%`, 26, 100);
   }
 
   if (state.paused) {
