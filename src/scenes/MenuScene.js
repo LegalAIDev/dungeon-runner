@@ -166,11 +166,10 @@ class MenuScene extends Phaser.Scene {
 
   update(time, delta) {
     const d = delta / 1000;
-    this.bg.hillFar.tilePositionX += 5 * d;
-    this.bg.hillNear.tilePositionX += 11 * d;
-    this.bg.clouds.forEach((cl) => {
-      cl.x -= 9 * d;
-      if (cl.x < -100) cl.x = CONFIG.WIDTH + 100;
-    });
+    if (this.bg && this.bg.layers) {
+      this.bg.layers.forEach((L, i) => {
+        L.tilePositionX += (3 + i * 5) * d;
+      });
+    }
   }
 }
