@@ -93,27 +93,29 @@ class MenuScene extends Phaser.Scene {
     const c = this.add.container(0, 0).setDepth(1000);
 
     c.add(this.add.rectangle(0, 0, W, H, 0x000000, 0.55).setOrigin(0).setInteractive());
-    c.add(UI.panel(this, W / 2, H / 2, 660, 408, UI.COLORS.panel,
+    c.add(UI.panel(this, W / 2, H / 2, 660, 470, UI.COLORS.panel,
       { stroke: UI.COLORS.accent, strokeWidth: 4 }));
-    c.add(UI.text(this, W / 2, H / 2 - 158, 'How to Play', 34, '#ffd23f', { bold: true }));
+    c.add(UI.text(this, W / 2, H / 2 - 188, ‘How to Play’, 34, ‘#ffd23f’, { bold: true }));
 
     const lines = [
-      'Move with ← →   ·   Jump with ↑ or Space',
-      'Z = light attack    ·    X = heavy attack',
-      '↓ while moving = dodge roll (brief invincibility)',
-      'Clear every wave of enemies to win the level.',
-      'Enemies get tougher — coins buy potions, not power.',
-      "Visit the Shop's " + (QUIZ_CONTENT.labTitle || "Quiz Lab") + ": answer questions, earn ⭐ stars.",
-      'Spend stars on stronger weapons, armour and heroes!',
+      ‘Move ← →   ·   Jump ↑ / Space   ·   ↓ = dodge roll’,
+      ‘Z = light attack — land 3 fast for a FINISHER hit’,
+      ‘X = heavy attack   ·   C = hold to raise your shield’,
+      ‘Time the shield to a hit for a PARRY — zero damage!’,
+      ‘Jump on an enemy\’s head to STOMP it (watch spiky foes)’,
+      ‘Clear every wave of enemies to win the level.’,
+      ‘Enemies get tougher — coins buy potions, not power.’,
+      "Visit the Shop’s " + (QUIZ_CONTENT.labTitle || "Quiz Lab") + ": answer questions, earn ⭐ stars.",
+      ‘Spend stars on stronger weapons, armour and heroes!’,
     ];
     lines.forEach((ln, i) => {
-      const y = H / 2 - 104 + i * 38;
+      const y = H / 2 - 130 + i * 34;
       c.add(this.add.circle(W / 2 - 286, y, 5, UI.COLORS.gold, 1));
       c.add(this.add.text(W / 2 - 268, y, ln,
-        { fontFamily: UI.FONT, fontSize: '19px', color: '#ffffff' }).setOrigin(0, 0.5));
+        { fontFamily: UI.FONT, fontSize: ‘19px’, color: ‘#ffffff’ }).setOrigin(0, 0.5));
     });
 
-    c.add(UI.button(this, W / 2, H / 2 + 158, {
+    c.add(UI.button(this, W / 2, H / 2 + 195, {
       label: 'Got it!', width: 200, height: 54, fontSize: 22,
       color: UI.COLORS.good, onClick: () => this.hideHelp(),
     }));

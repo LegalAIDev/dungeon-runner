@@ -20,6 +20,13 @@ class HudScene extends Phaser.Scene {
       this.hearts.push(this.add.image(40 + i * 38, 36, 'heart_full'));
     }
 
+    /* guard meter — drains when the shield soaks a hit, refills on its own */
+    this.add.text(30, 63, '🛡', { fontFamily: UI.FONT, fontSize: '18px' })
+      .setOrigin(0.5);
+    this.add.rectangle(48, 63, 152, 13, 0x000000, 0.5)
+      .setOrigin(0, 0.5).setStrokeStyle(2, 0xffffff, 0.25);
+    this.guardBar = this.add.rectangle(50, 63, 148, 7, 0x6fd6ff).setOrigin(0, 0.5);
+
     /* world / level label */
     UI.panel(this, W / 2, 32, 320, 44, UI.COLORS.panel, { alpha: 0.9, radius: 12 });
     const lvlName = g.isBossLevel ? 'BOSS' : 'LEVEL ' + (g.levelIndex + 1);
@@ -104,6 +111,7 @@ class HudScene extends Phaser.Scene {
     c.add(this.touchButton(762, 486, 46, 'JUMP', tap('jump')));
     c.add(this.touchButton(902, 352, 34, 'HVY',  tap('heavy')));
     c.add(this.touchButton(792, 360, 34, 'ROLL', tap('dodge')));
+    c.add(this.touchButton(686, 404, 36, 'BLOCK', held('block')));
     /* pause — opens the pause menu, whose Resume button closes it again */
     c.add(this.touchButton(724, 32, 26, 'II', { onDown: () => g.togglePause() }));
   }
@@ -146,6 +154,18 @@ class HudScene extends Phaser.Scene {
       this.hearts[i].setTexture(full ? 'heart_full' : 'heart_empty');
     }
 
+    /* guard meter — orange ghost bar while the guard is broken / recharging */
+    const gp = g.player;
+    const frac = Math.max(0, Math.min(1, gp.guard / gp.guardMax));
+    if (g.clock < gp.guardBrokenUntil) {
+      this.guardBar.width = 148;
+      this.guardBar.setFillStyle(0xff7a4c).setAlpha(0.35);
+    } else {
+      this.guardBar.width = 148 * frac;
+      this.guardBar.setAlpha(1)
+        .setFillStyle(frac < 0.3 ? 0xffd23f : 0x6fd6ff);
+    }
+
     this.coinText.setText(String(PlayerState.data.coins));
     if (g.isBossLevel) this.waveLabel.setText('');
     else this.waveLabel.setText('Wave ' + Math.max(1, g.waveIndex + 1) +
@@ -180,7 +200,9 @@ class HudScene extends Phaser.Scene {
     if (this.touchControls) {
       const show = !g.paused && !g.finished;
       this.touchControls.setVisible(show);
-      if (!show) { g.touch.left = false; g.touch.right = false; }
+      if (!show) {
+        g.touch.left = false; g.touch.right = false; g.touch.block = false;
+      }
     }
   }
 }

@@ -69,7 +69,7 @@ const AnimHelper = {
 
     /* Graceful fallbacks when the exact state's anim wasn't loaded */
     const fallback = { walk: 'idle', dodge: 'walk', jump: 'idle',
-                       hurt: 'idle', death: 'hurt' }[state];
+                       hurt: 'idle', death: 'hurt', block: 'idle' }[state];
     if (fallback) {
       const fbKey = 'art:' + sprite._artSection + ':' + sprite._artId + ':' + fallback;
       if (sceneAnims.exists(fbKey)) {

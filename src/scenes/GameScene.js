@@ -45,9 +45,9 @@ class GameScene extends Phaser.Scene {
     this.boss = null;
 
     /* on-screen control state, written by the HudScene touch buttons.
-       left/right are held; the rest are one-shot flags cleared each frame. */
+       left/right/block are held; the rest are one-shot flags cleared each frame. */
     this.touch = { left: false, right: false, jump: false,
-                   attack: false, heavy: false, dodge: false };
+                   attack: false, heavy: false, dodge: false, block: false };
 
     /* scenery */
     this.bg = UI.scenicBackground(this, this.biome);
@@ -104,7 +104,7 @@ class GameScene extends Phaser.Scene {
     p.vy = 0;
     p.onGround = true;
     p.pose = 'idle';
-    p.attack = null;                 // { type, start, hitDone }
+    p.attack = null;                 // { type, start, hitDone, finisher }
     p.kbVx = 0;
     p.hurtUntil = 0;
     p.invulnUntil = 0;
@@ -112,6 +112,21 @@ class GameScene extends Phaser.Scene {
     p.dodgeDir = 1;
     p.frozenUntil = 0;
     p.attackCooldownUntil = 0;
+
+    /* shield / guard — sturdier armour widens the guard meter */
+    p.guardMax = CONFIG.GUARD_MAX + (this.armor.defense || 0) * 2;
+    p.guard = p.guardMax;
+    p.blocking = false;
+    p.blockStartedAt = -9999;
+    p.guardBrokenUntil = 0;
+
+    /* light-attack combo chain */
+    p.lightChain = 0;
+    p.lastLightAt = -9999;
+
+    /* the energy bubble shown while blocking */
+    p.shieldFx = this.add.image(250, CONFIG.GROUND_Y - 46, 'shieldfx')
+      .setVisible(false);
     this.player = p;
   }
 
@@ -121,7 +136,7 @@ class GameScene extends Phaser.Scene {
 
   setupInput() {
     this.cursors = this.input.keyboard.createCursorKeys();
-    this.keys = this.input.keyboard.addKeys('Z,X,ESC,ONE,TWO,THREE');
+    this.keys = this.input.keyboard.addKeys('Z,X,C,ESC,ONE,TWO,THREE');
     this.input.keyboard.on('keydown-ESC', () => this.togglePause());
   }
 
@@ -260,7 +275,8 @@ class GameScene extends Phaser.Scene {
     const hurt = now < p.hurtUntil;
     const dodging = now < p.dodgeUntil;
 
-    if (!hurt && !frozen) this.handleInput(now, dodging);
+    this.updateBlockState(dt, now);
+    if (!hurt && !frozen && !p.blocking) this.handleInput(now, dodging);
 
     /* horizontal motion */
     let speed = CONFIG.PLAYER_SPEED;
@@ -270,12 +286,16 @@ class GameScene extends Phaser.Scene {
     } else if (hurt) {
       p.x += p.kbVx * dt;
       p.kbVx *= 0.86;
-    } else if (!frozen && !p.attack) {
+    } else if (!frozen && !p.attack && !p.blocking) {
       let mx = 0;
       if (this.cursors.left.isDown  || this.touch.left)  mx -= 1;
       if (this.cursors.right.isDown || this.touch.right) mx += 1;
       p.x += mx * speed * dt;
       if (mx !== 0) p.facing = mx;
+    } else if (p.blocking && !frozen) {
+      /* can't walk while blocking, but can pivot to face a new threat */
+      if (this.cursors.left.isDown  || this.touch.left)  p.facing = -1;
+      if (this.cursors.right.isDown || this.touch.right) p.facing = 1;
     }
     p.x = Phaser.Math.Clamp(p.x, CONFIG.ARENA_LEFT,
                             this.levelLength - CONFIG.ARENA_LEFT);
@@ -300,6 +320,9 @@ class GameScene extends Phaser.Scene {
       else p.y = surf;
     }
 
+    /* stomp — landing on an enemy's head while falling damages it */
+    if (!p.onGround && p.vy > 80) this.tryStomp(now);
+
     /* resolve an in-progress attack */
     if (p.attack) {
       const a = p.attack;
@@ -319,6 +342,7 @@ class GameScene extends Phaser.Scene {
     p.shadow.setAlpha(p.onGround ? 0.5 : 0.25);
     p.setDepth(p.y);
     p.setFlipX(p.facing < 0);
+    this.updateShieldFx(now);
 
     if (Phaser.Input.Keyboard.JustDown(this.keys.ONE))   this.useConsumable(0);
     if (Phaser.Input.Keyboard.JustDown(this.keys.TWO))   this.useConsumable(1);
@@ -338,7 +362,8 @@ class GameScene extends Phaser.Scene {
         !dodging && p.onGround && now > p.dodgeUntil + 250 && !p.attack) {
       this.startDodge(now);
     }
-    if (!p.attack && p.onGround && now > p.attackCooldownUntil) {
+    /* attacks work on the ground and mid-air alike */
+    if (!p.attack && now > p.attackCooldownUntil) {
       if (Phaser.Input.Keyboard.JustDown(this.keys.Z) || t.attack) {
         this.startAttack('light', now);
       } else if (Phaser.Input.Keyboard.JustDown(this.keys.X) || t.heavy) {
@@ -347,9 +372,96 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+  /* ---- shield / guard --------------------------------------------------- */
+  updateBlockState(dt, now) {
+    const p = this.player;
+    const want = (this.keys.C && this.keys.C.isDown) || this.touch.block;
+    const canBlock = p.onGround && !p.attack && p.guard > 0 &&
+                     now >= p.guardBrokenUntil && now >= p.hurtUntil &&
+                     now >= p.frozenUntil && now >= p.dodgeUntil;
+    const blocking = !!want && canBlock;
+    if (blocking && !p.blocking) p.blockStartedAt = now;  // start the parry timer
+    p.blocking = blocking;
+
+    /* guard refills whenever the shield is down and not broken */
+    if (!blocking && now >= p.guardBrokenUntil && p.guard < p.guardMax) {
+      p.guard = Math.min(p.guardMax, p.guard + CONFIG.GUARD_REGEN * dt);
+    }
+  }
+
+  updateShieldFx(now) {
+    const p = this.player;
+    const fx = p.shieldFx;
+    if (!fx) return;
+    fx.setVisible(p.blocking);
+    if (!p.blocking) return;
+    fx.x = p.x + p.facing * 30;
+    fx.y = p.y - 46;
+    fx.setDepth(p.y + 2);
+    fx.setFlipX(p.facing < 0);
+    const fresh = now - p.blockStartedAt <= CONFIG.PARRY_WINDOW;
+    const low = p.guard < p.guardMax * 0.3;
+    fx.setTint(fresh ? 0xffffff : (low ? 0xff9a4c : 0x6fd6ff));
+    fx.setScale(fresh ? 1.12 : 1);
+    fx.setAlpha(0.55 + 0.22 * Math.sin(now / 80));
+  }
+
+  /* ---- stomp ------------------------------------------------------------ */
+  tryStomp(now) {
+    const p = this.player;
+    for (let i = 0; i < this.enemies.length; i++) {
+      const e = this.enemies[i];
+      if (!e.alive || now < (e.stompImmuneUntil || 0)) continue;
+      const headY = e.y - e.bodyH;
+      if (Math.abs(p.x - e.x) > e.cfg.w * 0.42 + 18) continue;
+      if (p.y < headY - 40 || p.y > headY + e.bodyH * 0.5) continue;
+      this.doStomp(e, now);
+      return;
+    }
+  }
+
+  doStomp(e, now) {
+    const p = this.player;
+    e.stompImmuneUntil = now + 240;
+    const jumpHeld = this.cursors.up.isDown || this.cursors.space.isDown ||
+                     this.touch.jump;
+
+    /* spiky foes punish a stomp — you bounce off and take the hit */
+    if (e.cfg.spiky) {
+      p.vy = -CONFIG.STOMP_BOUNCE * 0.55;
+      p.onGround = false;
+      this.floatText(e.x, e.y - e.bodyH - 12, 'SPIKY!', '#ff8a3c', 18);
+      this.damagePlayer(Math.round(e.dmg * 0.7), e);
+      return;
+    }
+
+    p.vy = -(jumpHeld ? CONFIG.STOMP_BOUNCE_HIGH : CONFIG.STOMP_BOUNCE);
+    p.onGround = false;
+    let dmg = this.weapon.damage * 0.9 + this.worldIndex * 1.5;
+    if (e.isBoss) dmg *= 0.5;
+    let crit = false;
+    if (this.character.crit && Math.random() < this.character.crit) {
+      dmg *= 1.7; crit = true;
+    }
+    this.cameras.main.shake(80, 0.008);
+    this.floatText(p.x, p.y - 72, 'STOMP!', '#9bff9b', 20);
+    this.damageEnemy(e, dmg, 'heavy', crit);
+  }
+
   startAttack(type, now) {
     const p = this.player;
-    p.attack = { type: type, start: now, hitDone: false };
+    let finisher = false;
+    if (type === 'light') {
+      /* quick, unbroken light hits build toward a finisher */
+      p.lightChain = (now - p.lastLightAt <= CONFIG.COMBO_WINDOW)
+        ? p.lightChain + 1 : 1;
+      p.lastLightAt = now;
+      if (p.lightChain >= CONFIG.COMBO_FINISHER) {
+        finisher = true;
+        p.lightChain = 0;
+      }
+    }
+    p.attack = { type: type, start: now, hitDone: false, finisher: finisher };
     p.attackCooldownUntil = now + (type === 'heavy' ? 520 : 320);
   }
 
@@ -368,8 +480,9 @@ class GameScene extends Phaser.Scene {
     let pose = 'idle';
     if (hurt) pose = 'hurt';
     else if (dodging) pose = 'dodge';
+    else if (p.blocking) pose = 'block';
+    else if (p.attack) pose = 'attack';            // attack pose wins mid-air too
     else if (!p.onGround) pose = 'jump';
-    else if (p.attack) pose = 'attack';
     else if (this.cursors.left.isDown || this.cursors.right.isDown ||
              this.touch.left || this.touch.right) pose = 'walk';
 
@@ -383,7 +496,9 @@ class GameScene extends Phaser.Scene {
   /* ---- player attacks --------------------------------------------------- */
   performAttack(type) {
     const p = this.player;
+    const finisher = !!(p.attack && p.attack.finisher);
     let dmg = this.weapon.damage * (type === 'heavy' ? 1.7 : 1) + this.worldIndex;
+    if (finisher) dmg *= 1.7;
     let crit = false;
     if (this.character.crit && Math.random() < this.character.crit) {
       dmg *= 1.7; crit = true;
@@ -393,15 +508,23 @@ class GameScene extends Phaser.Scene {
     const fx = p.x + p.facing * 52;
     const slash = this.add.image(fx, p.y - 48, 'slash')
       .setFlipX(p.facing < 0).setDepth(p.y + 1)
-      .setScale(type === 'heavy' ? 1.25 : 0.95)
-      .setTint(this.weaponTint());
+      .setScale((type === 'heavy' ? 1.25 : 0.95) * (finisher ? 1.5 : 1))
+      .setTint(finisher ? 0xffd23f : this.weaponTint());
     this.tweens.add({ targets: slash, alpha: 0, scaleX: slash.scaleX * 1.3,
       duration: 170, onComplete: () => slash.destroy() });
+    if (finisher) {
+      this.floatText(p.x, p.y - 104, 'FINISHER!', '#ffd23f', 24);
+      this.cameras.main.shake(110, 0.009);
+    }
 
-    if (ranged) { this.spawnProjectile(dmg, type, crit); return; }
+    if (ranged) { this.spawnProjectile(dmg, type, crit, finisher); return; }
 
-    const range = this.weapon.range * (type === 'heavy' ? 1.3 : 1) + 24;
-    const maxTargets = this.weapon.aoe || (type === 'heavy' ? 2 : 1);
+    /* a finisher swings wider, hits more foes and crashes through guard */
+    const hitType = finisher ? 'heavy' : type;
+    const range = this.weapon.range * (type === 'heavy' ? 1.3 : 1) *
+                  (finisher ? 1.2 : 1) + 24;
+    const maxTargets = finisher ? Math.max(3, this.weapon.aoe || 2)
+                                : (this.weapon.aoe || (type === 'heavy' ? 2 : 1));
     const inFront = this.enemies
       .filter((e) => e.alive)
       .map((e) => ({ e: e, gap: (e.x - p.x) * p.facing }))
@@ -409,7 +532,7 @@ class GameScene extends Phaser.Scene {
                      Math.abs(o.e.y - p.y) <= 110)
       .sort((a, b) => a.gap - b.gap);
     if (inFront.length === 0) return;
-    inFront.slice(0, maxTargets).forEach((o) => this.damageEnemy(o.e, dmg, type, crit));
+    inFront.slice(0, maxTargets).forEach((o) => this.damageEnemy(o.e, dmg, hitType, crit));
   }
 
   weaponTint() {
@@ -417,16 +540,16 @@ class GameScene extends Phaser.Scene {
              magic_staff: 0x9bd0ff, dragon_blade: 0xff5fae }[this.weapon.id] || 0xffffff;
   }
 
-  spawnProjectile(dmg, type, crit) {
+  spawnProjectile(dmg, type, crit, finisher) {
     const p = this.player;
     const b = this.add.image(p.x + p.facing * 40, p.y - 50, 'bolt')
-      .setTint(this.weaponTint()).setDepth(p.y + 1)
-      .setScale(type === 'heavy' ? 1.4 : 1);
+      .setTint(finisher ? 0xffd23f : this.weaponTint()).setDepth(p.y + 1)
+      .setScale((type === 'heavy' ? 1.4 : 1) * (finisher ? 1.35 : 1));
     b.vx = p.facing * 620;
     b.dmg = dmg;
     b.crit = crit;
     b.fromPlayer = true;
-    b.pierce = this.weapon.pierces;
+    b.pierce = this.weapon.pierces || !!finisher;
     b.hitSet = [];
     this.projectiles.push(b);
   }
@@ -673,6 +796,14 @@ class GameScene extends Phaser.Scene {
     const now = this.clock;
     if (now < p.invulnUntil || this.finished) return;
 
+    /* an active shield catches anything coming from the front */
+    const inFront = !source || (source.x - p.x) * p.facing >= -30;
+    if (p.blocking && inFront) {
+      if (now - p.blockStartedAt <= CONFIG.PARRY_WINDOW) this.onParry(source);
+      else this.absorbBlock(rawDmg, source);
+      return;
+    }
+
     if (this.shieldCharges > 0) {
       this.shieldCharges--;
       this.floatText(p.x, p.y - 96, 'BLOCKED', '#9bd0ff', 20);
@@ -701,10 +832,78 @@ class GameScene extends Phaser.Scene {
     }
 
     this.combo = 0;
+    p.lightChain = 0;
     this.tookDamageLevel = true;
     this.waveDamageless = false;
 
     if (p.hp <= 0) this.handleDeath();
+  }
+
+  /* a held block — soaks the hit but drains the guard meter */
+  absorbBlock(rawDmg, source) {
+    const p = this.player;
+    const now = this.clock;
+    p.guard -= 20 + rawDmg * 0.7;
+    p.invulnUntil = now + 280;
+    this.hitSpark(p.x + p.facing * 32, p.y - 58);
+
+    if (p.guard > 0) {
+      this.floatText(p.x, p.y - 96, 'BLOCK', '#9bd0ff', 18);
+      this.cameras.main.shake(70, 0.006);
+      return;
+    }
+
+    /* guard shattered — a brief stun leaves the player wide open */
+    p.guard = 0;
+    p.blocking = false;
+    p.guardBrokenUntil = now + 1250;
+    p.hurtUntil = now + 470;
+    p.invulnUntil = now + 720;
+    p.kbVx = (source && source.x > p.x ? -1 : 1) * 220;
+    p.pose = '';                                  // force a pose refresh
+    this.floatText(p.x, p.y - 112, 'GUARD BREAK!', '#ff8a3c', 22);
+    this.cameras.main.shake(190, 0.016);
+    const chip = Math.max(2, Math.round(rawDmg * 0.4));
+    p.hp -= chip;
+    this.floatText(p.x + 22, p.y - 86, '-' + chip, '#ff6a7e', 18);
+    this.combo = 0;
+    p.lightChain = 0;
+    this.tookDamageLevel = true;
+    this.waveDamageless = false;
+    if (p.hp <= 0) this.handleDeath();
+  }
+
+  /* a perfectly-timed block — no damage, refunds guard, opens the attacker up.
+     A parried bolt is flung back, supercharged, as a friendly projectile. */
+  onParry(source) {
+    const p = this.player;
+    const now = this.clock;
+    p.invulnUntil = now + 420;
+    p.guard = Math.min(p.guardMax, p.guard + 20);
+    this.freezeUntil = now + 130;
+    this.cameras.main.flash(120, 170, 225, 255);
+    this.floatText(p.x, p.y - 104, 'PARRY!', '#ffe06a', 26);
+    this.hitSpark(p.x + p.facing * 34, p.y - 58);
+
+    if (source && source.cfg) {
+      if (!source.isBoss) {
+        source.state = 'stagger';
+        source.stateAt = now;
+        source.staggerDur = 640;
+        source.staggerImmuneUntil = now + 200;
+        source.kbVx = (source.x > p.x ? 1 : -1) * 300;
+      } else {
+        source.state = 'recover';
+        source.stateAt = now;
+      }
+    } else if (source && source.vx !== undefined) {
+      source.vx = -source.vx * 1.5;
+      source.fromPlayer = true;
+      source.dmg = Math.round(source.dmg * 1.6);
+      source.pierce = true;
+      source.hitSet = [];
+      source.setTint(this.weaponTint());
+    }
   }
 
   handleDeath() {
@@ -719,6 +918,8 @@ class GameScene extends Phaser.Scene {
       return;
     }
     this.finished = true;
+    p.blocking = false;
+    if (p.shieldFx) p.shieldFx.setVisible(false);
     AnimHelper.playState(this.player, 'death');
     this.cameras.main.fadeOut(600, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
@@ -757,7 +958,8 @@ class GameScene extends Phaser.Scene {
         }
       } else if (Math.abs(p.x - b.x) < 36 &&
                  Math.abs((p.y - 50) - b.y) < 60 && this.clock >= p.invulnUntil) {
-        this.damagePlayer(b.dmg, { x: b.x });
+        this.damagePlayer(b.dmg, b);
+        if (b.fromPlayer) return true;     // parried — now a friendly bolt
         b.destroy(); return false;
       }
       return true;
