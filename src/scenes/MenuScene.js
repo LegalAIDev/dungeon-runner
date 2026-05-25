@@ -103,7 +103,7 @@ class MenuScene extends Phaser.Scene {
       '↓ while moving = dodge roll (brief invincibility)',
       'Clear every wave of enemies to win the level.',
       'Enemies get tougher — coins buy potions, not power.',
-      ‘Visit the Shop\’s ‘ + (QUIZ_CONTENT.labTitle || ‘Quiz Lab’) + ‘: answer questions, earn ⭐ stars.’,
+      "Visit the Shop's " + (QUIZ_CONTENT.labTitle || "Quiz Lab") + ": answer questions, earn ⭐ stars.",
       'Spend stars on stronger weapons, armour and heroes!',
     ];
     lines.forEach((ln, i) => {
