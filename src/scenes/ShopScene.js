@@ -2,7 +2,7 @@
    ShopScene — three tabs:
      · Coin Shop   — consumables bought with 💰 coins
      · Math Lab    — launches a training session
-     · Star Upgrades — permanent weapons / armour / heroes / pets, ⭐ stars
+     · Star Upgrades — permanent magical upgrades / heroes / pets, ⭐ stars
    ========================================================================== */
 
 class ShopScene extends Phaser.Scene {
@@ -11,7 +11,7 @@ class ShopScene extends Phaser.Scene {
   init(data) {
     this.fromScene = (data && data.from) || 'WorldMap';
     this.tab = (data && data.tab) || 'upgrades';
-    if (!this.upgradeCat) this.upgradeCat = 'weapon';
+    if (!this.upgradeCat) this.upgradeCat = 'magical';
     if (this.upgradePage == null) this.upgradePage = 0;
   }
 
@@ -158,10 +158,10 @@ class ShopScene extends Phaser.Scene {
   /* ---- Tab 3: Star Upgrades -------------------------------------------- */
   showUpgrades() {
     const W = CONFIG.WIDTH;
-    const cats = [['weapon', 'Weapons'], ['armor', 'Armour'],
-                  ['character', 'Heroes'], ['companion', 'Pets']];
+    const cats = [['magical', 'Magical Upgrades'], ['character', 'Heroes'],
+                  ['companion', 'Pets']];
     cats.forEach((c, i) => {
-      const x = W / 2 + (i - 1.5) * 168;
+      const x = W / 2 + (i - 1) * 210;
       this.content.add(UI.button(this, x, 138, {
         label: c[1], width: 156, height: 42, fontSize: 17,
         color: c[0] === this.upgradeCat ? UI.COLORS.accent : UI.COLORS.panelLight,
@@ -173,7 +173,7 @@ class ShopScene extends Phaser.Scene {
       }));
     });
 
-    const lists = { weapon: WEAPONS, armor: ARMOR,
+    const lists = { magical: MAGICAL_UPGRADES,
                     character: CHARACTERS, companion: COMPANIONS };
     const list = lists[this.upgradeCat];
 
@@ -213,10 +213,11 @@ class ShopScene extends Phaser.Scene {
   itemCard(x, y, w, item, kind) {
     const isConsumable = kind === 'consumable';
     const cardH = isConsumable ? 252 : 300;
+    const slot = kind === 'magical' ? item.slot : kind;
     const unlockKind = { weapon: 'weapons', armor: 'armor',
-                         character: 'characters', companion: 'companions' }[kind];
+                         character: 'characters', companion: 'companions' }[slot];
     const owned = isConsumable ? true : PlayerState.owns(unlockKind, item.id);
-    const equipped = !isConsumable && PlayerState.equipped(kind) === item.id;
+    const equipped = !isConsumable && PlayerState.equipped(slot) === item.id;
     const currency = isConsumable ? 'coins' : 'stars';
     const have = isConsumable ? PlayerState.data.coins : PlayerState.data.mathStars;
     const affordable = have >= item.cost;
@@ -242,8 +243,8 @@ class ShopScene extends Phaser.Scene {
     }
 
     let stat = 'Consumable';
-    if (kind === 'weapon')    stat = '⚔ Damage ' + item.damage;
-    else if (kind === 'armor')stat = '🛡 Defense ' + item.defense;
+    if (slot === 'weapon')    stat = '⚔ Damage ' + item.damage;
+    else if (slot === 'armor')stat = '🛡 Defense ' + item.defense;
     else if (isChar)
       stat = item.bonusHp ? '❤ +' + Math.round(item.bonusHp / 20) + ' heart' : 'Hero';
     else if (kind === 'companion') stat = 'Companion';
@@ -275,13 +276,13 @@ class ShopScene extends Phaser.Scene {
     } else if (!isConsumable && owned) {
       this.content.add(UI.button(this, x, by, { label: 'Equip', width: w - 26,
         height: 44, fontSize: 17, color: UI.COLORS.accent,
-        onClick: () => this.equipItem(kind, item) }));
+        onClick: () => this.equipItem(slot, item) }));
     } else if (affordable) {
       const icon = currency === 'coins' ? ' 💰' : ' ⭐';
       this.content.add(UI.button(this, x, by, {
         label: 'Buy  ' + item.cost + icon, width: w - 26, height: 44, fontSize: 16,
         color: UI.COLORS.good,
-        onClick: () => this.buyItem(item, kind, unlockKind) }));
+        onClick: () => this.buyItem(item, slot, unlockKind) }));
     } else {
       this.content.add(UI.button(this, x, by, {
         label: (item.cost - have) + ' more ' + (currency === 'coins' ? '💰' : '⭐'),

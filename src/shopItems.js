@@ -6,28 +6,30 @@
 /* ---- Star Upgrades: bought with ⭐ Math Stars, all permanent --------------- */
 
 const WEAPONS = [
-  { id: 'wood_sword',  name: 'Wooden Sword', cost: 0,   damage: 10, gearScore: 10,
+  { id: 'wood_sword',  name: 'Wooden Sword', slot: 'weapon', cost: 0,   damage: 10, gearScore: 10,
     range: 78,  desc: 'A trusty starter blade.' },
-  { id: 'iron_sword',  name: 'Iron Sword',   cost: 60,  damage: 20, gearScore: 20,
+  { id: 'iron_sword',  name: 'Iron Sword',   slot: 'weapon', cost: 60,  damage: 20, gearScore: 20,
     range: 84,  desc: 'Heavier steel hits harder.' },
-  { id: 'fire_axe',    name: 'Fire Axe',     cost: 150, damage: 28, gearScore: 35,
+  { id: 'fire_axe',    name: 'Fire Axe',     slot: 'weapon', cost: 150, damage: 28, gearScore: 35,
     range: 100, aoe: 3, desc: 'Wide arc strikes up to 3 enemies.' },
-  { id: 'magic_staff', name: 'Magic Staff',  cost: 280, damage: 22, gearScore: 40,
+  { id: 'magic_staff', name: 'Magic Staff',  slot: 'weapon', cost: 280, damage: 22, gearScore: 40,
     range: 92,  ranged: true, desc: 'Fires a magic bolt across the arena.' },
-  { id: 'dragon_blade',name: 'Dragon Blade', cost: 550, damage: 50, gearScore: 70,
+  { id: 'dragon_blade',name: 'Dragon Blade', slot: 'weapon', cost: 550, damage: 50, gearScore: 70,
     range: 96,  pierces: true, desc: 'Light attacks pierce enemy guard.' },
 ];
 
 const ARMOR = [
-  { id: 'cloth',        name: 'Cloth Armor',   cost: 0,   defense: 0,  gearScore: 0,
+  { id: 'cloth',        name: 'Cloth Armor',   slot: 'armor', cost: 0,   defense: 0,  gearScore: 0,
     desc: 'Barely better than nothing.' },
-  { id: 'leather',      name: 'Leather Armor', cost: 80,  defense: 5,  gearScore: 15,
+  { id: 'leather',      name: 'Leather Armor', slot: 'armor', cost: 80,  defense: 5,  gearScore: 15,
     desc: 'Light protection from blows.' },
-  { id: 'chain_mail',   name: 'Chain Mail',    cost: 200, defense: 12, gearScore: 30,
+  { id: 'chain_mail',   name: 'Chain Mail',    slot: 'armor', cost: 200, defense: 12, gearScore: 30,
     deflect: 0.10, desc: '10% chance to deflect a hit entirely.' },
-  { id: 'dragon_scale', name: 'Dragon Scale',  cost: 500, defense: 22, gearScore: 55,
+  { id: 'dragon_scale', name: 'Dragon Scale',  slot: 'armor', cost: 500, defense: 22, gearScore: 55,
     autoBlock: true, desc: 'Auto-blocks the first hit of each wave.' },
 ];
+
+const MAGICAL_UPGRADES = WEAPONS.concat(ARMOR);
 
 const CHARACTERS = [
   { id: 'fighter', name: 'Fighter', cost: 0,   gearScore: 0,  bonusHp: 0,
@@ -50,10 +52,6 @@ const CHARACTERS = [
     desc: '+20% crit, attacks are ranged.', passive: 'Precise long-range shots.' },
   { id: 'berserker',name: 'Berserker', cost: 550, gearScore: 25, bonusHp: 0, crit: 0.30,
     desc: '+30% critical hit chance.', passive: 'Wild and devastating strikes.' },
-  { id: 'striker',  name: 'Striker',   cost: 400, gearScore: 20, bonusHp: 0, crit: 0.10,
-    desc: '+10% crit, fast combo style.', passive: 'Never stops attacking.' },
-  { id: 'duelist',  name: 'Duelist',   cost: 480, gearScore: 22, bonusHp: 0, crit: 0.18,
-    desc: '+18% crit, elegant fighter.', passive: 'Precision over brute force.' },
 ];
 
 const COMPANIONS = [
