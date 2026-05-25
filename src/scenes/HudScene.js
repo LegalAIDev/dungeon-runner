@@ -85,8 +85,14 @@ class HudScene extends Phaser.Scene {
       fontFamily: UI.FONT, fontSize: '15px', color: '#ffffff', fontStyle: 'bold',
     }).setOrigin(0.5).setVisible(false);
 
-    /* on-screen controls — only built on touch devices */
-    if (this.sys.game.device.input.touch) this.buildTouchControls();
+    /* on-screen controls — only built on actual mobile devices, not desktop
+       touch-screen laptops.  UA check covers the common mobile platforms;
+       the fallback catches tablets that may spoof a desktop UA. */
+    const ua = navigator.userAgent || '';
+    const mobileUA = /Android|iPhone|iPad|iPod|IEMobile|Opera Mini|BlackBerry|Mobile/i.test(ua);
+    const likelyTablet = navigator.maxTouchPoints > 1 && window.innerWidth < 1100
+                         && !(/Windows NT/.test(ua));
+    if (mobileUA || likelyTablet) this.buildTouchControls();
   }
 
   slotGlyph(effect) {
