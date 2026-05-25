@@ -35,7 +35,7 @@ class MenuScene extends Phaser.Scene {
       yoyo: true, repeat: -1, ease: 'Sine.inOut' });
 
     /* title */
-    const title = this.add.text(W / 2, 116, 'MATH RUNNER', {
+    const title = this.add.text(W / 2, 116, 'DUNGEON RUNNER', {
       fontFamily: UI.FONT, fontSize: '74px', fontStyle: 'bold',
       color: '#ffd23f', stroke: '#3a2150', strokeThickness: 12,
     }).setOrigin(0.5);
