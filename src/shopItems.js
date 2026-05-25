@@ -6,26 +6,26 @@
 /* ---- Star Upgrades: bought with ⭐ Math Stars, all permanent --------------- */
 
 const WEAPONS = [
-  { id: 'wood_sword',  name: 'Wooden Sword', slot: 'weapon', cost: 0,   damage: 10, gearScore: 10,
-    range: 78,  desc: 'A trusty starter blade.' },
-  { id: 'iron_sword',  name: 'Iron Sword',   slot: 'weapon', cost: 60,  damage: 20, gearScore: 20,
-    range: 84,  desc: 'Heavier steel hits harder.' },
-  { id: 'fire_axe',    name: 'Fire Axe',     slot: 'weapon', cost: 150, damage: 28, gearScore: 35,
-    range: 100, aoe: 3, desc: 'Wide arc strikes up to 3 enemies.' },
-  { id: 'magic_staff', name: 'Magic Staff',  slot: 'weapon', cost: 280, damage: 22, gearScore: 40,
-    range: 92,  ranged: true, desc: 'Fires a magic bolt across the arena.' },
-  { id: 'dragon_blade',name: 'Dragon Blade', slot: 'weapon', cost: 550, damage: 50, gearScore: 70,
-    range: 96,  pierces: true, desc: 'Light attacks pierce enemy guard.' },
+  { id: 'wood_sword',  name: 'Timber Rune',  slot: 'weapon', cost: 0,   damage: 10, gearScore: 10,
+    range: 78,  desc: 'A basic enchantment that strengthens your attacks.' },
+  { id: 'iron_sword',  name: 'Iron Rune',    slot: 'weapon', cost: 60,  damage: 20, gearScore: 20,
+    range: 84,  desc: 'Stronger magic that hits harder.' },
+  { id: 'fire_axe',    name: 'Flame Rune',   slot: 'weapon', cost: 150, damage: 28, gearScore: 35,
+    range: 100, aoe: 3, desc: 'Blazing magic strikes up to 3 enemies at once.' },
+  { id: 'magic_staff', name: 'Arcane Rune',  slot: 'weapon', cost: 280, damage: 22, gearScore: 40,
+    range: 92,  ranged: true, desc: 'Channels a magic bolt across the arena.' },
+  { id: 'dragon_blade',name: 'Dragon Rune',  slot: 'weapon', cost: 550, damage: 50, gearScore: 70,
+    range: 96,  pierces: true, desc: 'Ancient magic that pierces enemy guard.' },
 ];
 
 const ARMOR = [
-  { id: 'cloth',        name: 'Cloth Armor',   slot: 'armor', cost: 0,   defense: 0,  gearScore: 0,
+  { id: 'cloth',        name: 'Minor Ward',   slot: 'armor', cost: 0,   defense: 0,  gearScore: 0,
     desc: 'Barely better than nothing.' },
-  { id: 'leather',      name: 'Leather Armor', slot: 'armor', cost: 80,  defense: 5,  gearScore: 15,
-    desc: 'Light protection from blows.' },
-  { id: 'chain_mail',   name: 'Chain Mail',    slot: 'armor', cost: 200, defense: 12, gearScore: 30,
+  { id: 'leather',      name: 'Stone Ward',   slot: 'armor', cost: 80,  defense: 5,  gearScore: 15,
+    desc: 'A light charm that softens incoming blows.' },
+  { id: 'chain_mail',   name: 'Iron Ward',    slot: 'armor', cost: 200, defense: 12, gearScore: 30,
     deflect: 0.10, desc: '10% chance to deflect a hit entirely.' },
-  { id: 'dragon_scale', name: 'Dragon Scale',  slot: 'armor', cost: 500, defense: 22, gearScore: 55,
+  { id: 'dragon_scale', name: 'Dragon Ward',  slot: 'armor', cost: 500, defense: 22, gearScore: 55,
     autoBlock: true, desc: 'Auto-blocks the first hit of each wave.' },
 ];
 

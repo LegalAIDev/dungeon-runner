@@ -243,8 +243,8 @@ class ShopScene extends Phaser.Scene {
     }
 
     let stat = 'Consumable';
-    if (slot === 'weapon')    stat = '⚔ Damage ' + item.damage;
-    else if (slot === 'armor')stat = '🛡 Defense ' + item.defense;
+    if (slot === 'weapon')    stat = '✨ Power ' + item.damage;
+    else if (slot === 'armor')stat = '🔮 Shield ' + item.defense;
     else if (isChar)
       stat = item.bonusHp ? '❤ +' + Math.round(item.bonusHp / 20) + ' heart' : 'Hero';
     else if (kind === 'companion') stat = 'Companion';
