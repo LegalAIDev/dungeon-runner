@@ -44,7 +44,7 @@ class MenuScene extends Phaser.Scene {
       duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
 
     UI.text(this, W / 2, 174,
-      'Fight through four worlds  •  Train in the Math Lab to power up',
+      'Fight through four worlds  •  Train in the ' + (QUIZ_CONTENT.labTitle || 'Quiz Lab') + ' to power up',
       20, '#ffffff', { shadow: true });
 
     /* currency panels */
@@ -103,7 +103,7 @@ class MenuScene extends Phaser.Scene {
       '↓ while moving = dodge roll (brief invincibility)',
       'Clear every wave of enemies to win the level.',
       'Enemies get tougher — coins buy potions, not power.',
-      'Visit the Shop’s Math Lab: solve math, earn ⭐ stars.',
+      ‘Visit the Shop\’s ‘ + (QUIZ_CONTENT.labTitle || ‘Quiz Lab’) + ‘: answer questions, earn ⭐ stars.’,
       'Spend stars on stronger weapons, armour and heroes!',
     ];
     lines.forEach((ln, i) => {

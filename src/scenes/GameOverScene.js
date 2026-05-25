@@ -56,8 +56,8 @@ class GameOverScene extends Phaser.Scene {
     }
 
     this.add.text(W / 2, 428,
-      win ? 'Enemies ahead are tougher — train in the Math Lab to power up!'
-          : 'Out-geared? Earn ⭐ stars in the Math Lab and gear up.', {
+      win ? 'Enemies ahead are tougher — train in the ' + QUIZ_CONTENT.labTitle + ' to power up!'
+          : 'Out-geared? Earn ⭐ stars in the ' + QUIZ_CONTENT.labTitle + ' and gear up.', {
       fontFamily: UI.FONT, fontSize: '16px', color: '#cdb8ff',
     }).setOrigin(0.5);
 
@@ -74,7 +74,7 @@ class GameOverScene extends Phaser.Scene {
         this.scene.start('Game', { worldId: r.worldId, levelIndex: r.levelIndex || 0 });
       }]);
     }
-    btns.push(['🧪 Math Lab', 0x8a63d6, () => {
+    btns.push([(QUIZ_CONTENT.labTabIcon || '🧪') + ' ' + QUIZ_CONTENT.labTitle, 0x8a63d6, () => {
       this.scene.start('Shop', { from: 'WorldMap', tab: 'lab' });
     }]);
     btns.push(['World Map', UI.COLORS.accent, () => { this.scene.start('WorldMap'); }]);

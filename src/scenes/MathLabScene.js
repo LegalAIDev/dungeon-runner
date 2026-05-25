@@ -18,7 +18,7 @@ class MathLabScene extends Phaser.Scene {
     this.add.rectangle(0, 0, W, CONFIG.HEIGHT, 0x140d33, 0.62).setOrigin(0);
     this.cameras.main.fadeIn(240, 0, 0, 0);
 
-    this.problems = MathProblems.generateSession(this.topic.id, this.sessionSize);
+    this.problems = QuizEngine.generateSession(this.topic.id, this.sessionSize);
     this.index = 0;
     this.starsEarned = 0;
     this.streak = 0;
@@ -30,7 +30,7 @@ class MathLabScene extends Phaser.Scene {
 
     /* header */
     this.add.text(W / 2, 46,
-      (this.isChallenge ? '⭐ DAILY CHALLENGE — ' : '🧪 ') +
+      (this.isChallenge ? '⭐ DAILY CHALLENGE — ' : (QUIZ_CONTENT.labTabIcon || '🧪') + ' ') +
       this.topic.name.toUpperCase(), {
       fontFamily: UI.FONT, fontSize: '28px', color: '#ffd23f', fontStyle: 'bold',
     }).setOrigin(0.5);
@@ -66,8 +66,11 @@ class MathLabScene extends Phaser.Scene {
     /* question card */
     box.add(UI.panel(this, W / 2, 200, 560, 150, UI.COLORS.panel,
       { stroke: this.topic.color, strokeWidth: 4 }));
-    box.add(this.add.text(W / 2, 200, prob.q + '  =  ?', {
-      fontFamily: UI.FONT, fontSize: '46px', color: '#ffffff', fontStyle: 'bold',
+    const qText = prob.q;
+    const fontSize = qText.length > 60 ? '22px' : qText.length > 35 ? '30px' : '46px';
+    box.add(this.add.text(W / 2, 200, qText, {
+      fontFamily: UI.FONT, fontSize: fontSize, color: '#ffffff', fontStyle: 'bold',
+      wordWrap: { width: 520 }, align: 'center',
     }).setOrigin(0.5));
 
     /* answer buttons (2 x 2) */
@@ -198,10 +201,10 @@ class MathLabScene extends Phaser.Scene {
     const c = this.add.container(0, 0);
     c.add(UI.panel(this, W / 2, H / 2, 600, 420, UI.COLORS.panel,
       { stroke: UI.COLORS.gold, strokeWidth: 4 }));
-    c.add(UI.text(this, W / 2, H / 2 - 168, '🧪  Training Complete!', 32, '#ffd23f',
+    c.add(UI.text(this, W / 2, H / 2 - 168, (QUIZ_CONTENT.labTabIcon || '🧪') + '  Training Complete!', 32, '#ffd23f',
       { bold: true }));
     c.add(UI.text(this, W / 2, H / 2 - 126,
-      this.topic.name + '  ·  ' + this.sessionSize + ' problems', 18, '#cdb8ff'));
+      this.topic.name + '  ·  ' + this.sessionSize + ' questions', 18, '#cdb8ff'));
 
     const rows = [
       ['✅ Correct', this.correctCount + ' / ' + this.sessionSize],

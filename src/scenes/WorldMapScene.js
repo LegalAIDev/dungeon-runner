@@ -181,7 +181,7 @@ class WorldMapScene extends Phaser.Scene {
       'Your gear score is ' + gear + '.  Recommended: ' + th.comfortable + '.',
       19, '#ffffff'));
     c.add(UI.text(this, W / 2, H / 2 - 12,
-      tough ? 'This will be extremely hard. Try the Math Lab to power up!'
+      tough ? 'This will be extremely hard. Try the ' + QUIZ_CONTENT.labTitle + ' to power up!'
             : 'You can still win, but it will be tough.',
       17, '#ffd6d6', { wrapWidth: 480 }));
 
@@ -191,7 +191,7 @@ class WorldMapScene extends Phaser.Scene {
       onClick: () => { c.destroy(); this.startLevel(world.id, levelIndex); },
     }));
     c.add(UI.button(this, W / 2 + 130, H / 2 + 70, {
-      label: 'Math Lab →', width: 220, height: 52, fontSize: 19,
+      label: QUIZ_CONTENT.labTitle + ' →', width: 220, height: 52, fontSize: 19,
       color: UI.COLORS.good,
       onClick: () => { this.scene.start('Shop', { from: 'WorldMap', tab: 'lab' }); },
     }));

@@ -35,7 +35,7 @@ const CHARACTERS = [
   { id: 'ninja',   name: 'Ninja',   cost: 150, gearScore: 15, bonusHp: 0, crit: 0.25,
     desc: '+25% critical hit chance.', passive: 'Strikes often land as crits.' },
   { id: 'wizard',  name: 'Wizard',  cost: 250, gearScore: 10, bonusHp: 0, labBonus: 1,
-    desc: '+1 ⭐ per Math Lab answer.', passive: 'Learns faster in the Lab.' },
+    desc: '+1 ⭐ per Quiz Lab answer.', passive: 'Learns faster in the Lab.' },
   { id: 'knight',  name: 'Knight',  cost: 400, gearScore: 20, bonusHp: 20, heavySpeed: 0.25,
     desc: '+1 heart, faster heavy attacks.', passive: 'Tanky and strong.' },
   { id: 'archer',   name: 'Archer',    cost: 350, gearScore: 20, bonusHp: 0, alwaysRanged: true,
@@ -45,7 +45,7 @@ const CHARACTERS = [
   { id: 'king',     name: 'King',      cost: 650, gearScore: 30, bonusHp: 30,
     desc: '+2 hearts — maximum toughness.', passive: 'Royally hard to kill.' },
   { id: 'arcmage',  name: 'Arcmage',   cost: 600, gearScore: 20, bonusHp: 0, labBonus: 2, alwaysRanged: true,
-    desc: '+2 ⭐ per Lab answer, ranged only.', passive: 'Scholar of the arcane.' },
+    desc: '+2 ⭐ per Quiz Lab answer, ranged only.', passive: 'Scholar of the arcane.' },
   { id: 'ranger',   name: 'Ranger',    cost: 450, gearScore: 20, bonusHp: 0, crit: 0.20, alwaysRanged: true,
     desc: '+20% crit, attacks are ranged.', passive: 'Precise long-range shots.' },
   { id: 'berserker',name: 'Berserker', cost: 550, gearScore: 25, bonusHp: 0, crit: 0.30,
@@ -62,7 +62,7 @@ const COMPANIONS = [
   { id: 'dragon', name: 'Baby Dragon', cost: 450, gearScore: 15, coinBonus: 0.25,
     desc: '+25% coins from every enemy.' },
   { id: 'golem',  name: 'Math Golem',  cost: 700, gearScore: 20, labBonus: 2,
-    desc: '+2 ⭐ on every Math Lab answer.' },
+    desc: '+2 ⭐ on every Quiz Lab answer.' },
 ];
 
 /* ---- Coin Shop: bought with 💰 coins, consumable -------------------------- */
@@ -80,18 +80,9 @@ const CONSUMABLES = [
     desc: 'Clears every enemy on screen — one use.' },
 ];
 
-/* ---- Math Lab topics ----------------------------------------------------- */
+/* ---- Quiz Lab topics (defined in content.js, admin-editable) ------------- */
 
-const MATH_TOPICS = [
-  { id: 'addSub',   name: 'Addition & Subtraction', icon: '+', starsPerCorrect: 2,
-    timerSeconds: 6, color: 0x36c98d },
-  { id: 'multiply', name: 'Multiplication',         icon: '×', starsPerCorrect: 3,
-    timerSeconds: 6, color: 0x5b6ef5 },
-  { id: 'divFrac',  name: 'Division & Fractions',   icon: '÷', starsPerCorrect: 4,
-    timerSeconds: 7, color: 0x8a63d6 },
-  { id: 'mixed',    name: 'Mixed Operations',       icon: '∗', starsPerCorrect: 5,
-    timerSeconds: 8, color: 0xffcf3f },
-];
+const MATH_TOPICS = QUIZ_CONTENT.topics;
 
 /* ---- Worlds and levels --------------------------------------------------- */
 

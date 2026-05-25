@@ -33,11 +33,11 @@ const DailyQuests = (function () {
     { id: 'perfectWave', type: 'combat', currency: 'coins', reward: 120,
       goal: 1, text: 'Finish a wave without taking damage.' },
     { id: 'labSession',  type: 'math',   currency: 'stars', reward: 30,
-      goal: 1, text: 'Complete a Math Lab training session.' },
+      goal: 1, text: 'Complete a Quiz Lab training session.' },
     { id: 'labStreak',   type: 'math',   currency: 'stars', reward: 25,
-      goal: 5, text: 'Get a 5-answer streak in the Math Lab.' },
+      goal: 5, text: 'Get a 5-answer streak in the Quiz Lab.' },
     { id: 'labCorrect',  type: 'math',   currency: 'stars', reward: 35,
-      goal: 15, text: 'Answer 15 Math Lab problems correctly.' },
+      goal: 15, text: 'Answer 15 Quiz Lab questions correctly.' },
   ];
 
   return {

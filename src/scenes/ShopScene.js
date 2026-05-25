@@ -21,7 +21,7 @@ class ShopScene extends Phaser.Scene {
     this.add.rectangle(0, 0, W, CONFIG.HEIGHT, 0x140d33, 0.66).setOrigin(0);
     this.cameras.main.fadeIn(240, 0, 0, 0);
 
-    this.add.text(W / 2, 38, '🏪  MATH STORE', {
+    this.add.text(W / 2, 38, '🏪  ' + QUIZ_CONTENT.storeTitle, {
       fontFamily: UI.FONT, fontSize: '32px', color: '#ffd23f', fontStyle: 'bold',
     }).setOrigin(0.5);
 
@@ -40,7 +40,8 @@ class ShopScene extends Phaser.Scene {
 
     /* tab bar */
     this.tabBtns = {};
-    const tabs = [['coin', '💰 Coin Shop'], ['lab', '🧪 Math Lab'],
+    const labLabel = (QUIZ_CONTENT.labTabIcon || '🧪') + ' ' + QUIZ_CONTENT.labTitle;
+    const tabs = [['coin', '💰 Coin Shop'], ['lab', labLabel],
                   ['upgrades', '⭐ Star Upgrades']];
     tabs.forEach((t, i) => {
       const x = W / 2 + (i - 1) * 248;
@@ -94,7 +95,7 @@ class ShopScene extends Phaser.Scene {
   showMathLab() {
     const W = CONFIG.WIDTH;
     this.content.add(UI.text(this, W / 2, 134,
-      'Train your hero to earn ⭐ stars. Wrong answers never cost you anything.',
+      QUIZ_CONTENT.labSubtitle || 'Train your hero to earn ⭐ stars. Wrong answers never cost you anything.',
       17, '#cdb8ff'));
 
     MATH_TOPICS.forEach((topic, i) => {
