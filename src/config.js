@@ -27,6 +27,19 @@ const CONFIG = {
 
   HIT_STOP_MS: 70,          // freeze frame on a landed strike
 
+  /* defensive combat */
+  GUARD_MAX: 100,           // shield guard-meter capacity (before armour bonus)
+  GUARD_REGEN: 30,          // guard points regained per second while not blocking
+  PARRY_WINDOW: 190,        // ms after raising the shield that a block parries
+
+  /* stomp (jump on an enemy's head, Mario-style) */
+  STOMP_BOUNCE: 560,        // upward push after a successful stomp
+  STOMP_BOUNCE_HIGH: 780,   // bigger bounce when the jump button is held
+
+  /* light-attack combo: every Nth quick hit becomes a finisher */
+  COMBO_WINDOW: 640,        // ms between light hits to keep the chain alive
+  COMBO_FINISHER: 3,        // light hits in a row that trigger the finisher
+
   FONT: '"Trebuchet MS", "Segoe UI", Verdana, system-ui, sans-serif',
 };
 

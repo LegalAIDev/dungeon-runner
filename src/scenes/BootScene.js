@@ -46,11 +46,12 @@ class BootScene extends Phaser.Scene {
     const g = this.make.graphics({ add: false });
 
     /* ---- the player hero, in every combat pose ---------------------------- */
-    ['idle', 'walk0', 'walk1', 'jump', 'attack', 'hurt', 'dodge'].forEach((p) => {
-      this.drawHero(g, p);
-      g.generateTexture('hero_' + p, 104, 112);
-      g.clear();
-    });
+    ['idle', 'walk0', 'walk1', 'jump', 'attack', 'hurt', 'dodge', 'block']
+      .forEach((p) => {
+        this.drawHero(g, p);
+        g.generateTexture('hero_' + p, 104, 112);
+        g.clear();
+      });
 
     /* ---- standard enemies: an idle and an attack frame each -------------- */
     const foes = EnemyFactory.list();
@@ -75,6 +76,7 @@ class BootScene extends Phaser.Scene {
     /* ---- combat effects & pickups --------------------------------------- */
     this.drawSlash(g);   g.generateTexture('slash', 110, 110); g.clear();
     this.drawBolt(g);    g.generateTexture('bolt', 32, 32);    g.clear();
+    this.drawShieldFx(g);g.generateTexture('shieldfx', 64, 86); g.clear();
     this.drawShadow(g);  g.generateTexture('shadowblob', 92, 26); g.clear();
     this.drawCoin(g);    g.generateTexture('coin', 30, 30);    g.clear();
     this.drawStarIcon(g);g.generateTexture('starcoin', 34, 34); g.clear();
@@ -155,6 +157,9 @@ class BootScene extends Phaser.Scene {
                                  armFront = -1.6; mouth = 'hurt'; }
     else if (pose === 'dodge') { lean = 0.7; bob = 16; lf = 1.3; lb = 1.0;
                                  armFront = 1.1; armBack = 1.2; }
+    else if (pose === 'block') { lean = 0.12; lf = 0.46; lb = -0.34; bob = 2;
+                                 armFront = 0.62; armBack = 0.5; swordAngle = 0.2;
+                                 mouth = 'set'; }
 
     g.save();
     g.translateCanvas(CX, GY - 56 + bob);
@@ -477,6 +482,16 @@ class BootScene extends Phaser.Scene {
     g.fillStyle(0xffffff, 0.25); g.fillCircle(16, 16, 15);
     g.fillStyle(0xffffff, 0.55); g.fillCircle(16, 16, 10);
     g.fillStyle(0xffffff, 1);    g.fillCircle(16, 16, 6);
+  }
+
+  /* a glowing energy shield bubble — drawn white so it can be tinted in-game */
+  drawShieldFx(g) {
+    const cx = 32, cy = 43;
+    g.fillStyle(0xffffff, 0.14); g.fillEllipse(cx, cy, 60, 84);
+    g.fillStyle(0xffffff, 0.28); g.fillEllipse(cx, cy, 44, 66);
+    g.lineStyle(5, 0xffffff, 0.9); g.strokeEllipse(cx, cy, 50, 74);
+    g.lineStyle(2, 0xffffff, 0.5); g.strokeEllipse(cx, cy, 34, 54);
+    g.fillStyle(0xffffff, 0.6);  g.fillEllipse(cx - 9, cy - 14, 9, 20);
   }
 
   drawShadow(g) {

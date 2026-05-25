@@ -26,6 +26,7 @@ const EnemyFactory = (function () {
     armored: {
       key: 'armored', name: 'Armored Orc', hp: 70, damage: 14, speed: 90,
       range: 56, w: 99, h: 115, attackWindup: 560, behaviour: 'telegraph',
+      spiky: true,                 // spiked pauldrons — punishes a careless stomp
     },
     shadow: {
       key: 'shadow', name: 'Shadow Knight', hp: 100, damage: 22, speed: 138,
@@ -47,6 +48,7 @@ const EnemyFactory = (function () {
     fire_worm: {
       key: 'fire_worm', name: 'Fire Worm', hp: 45, damage: 11, speed: 90,
       range: 60, w: 123, h: 115, attackWindup: 400, behaviour: 'rush',
+      spiky: true,                 // wreathed in flame — stomping it burns you
     },
   };
 
